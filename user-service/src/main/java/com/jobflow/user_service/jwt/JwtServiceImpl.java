@@ -95,10 +95,9 @@ public class JwtServiceImpl implements JwtService {
     @Override
     public boolean isValid(UserDetails user, String token) {
         boolean matchesUser = extractLogin(token).equals(user.getUsername());
-        boolean isExpired = new Date().before(extractExpiration(token));
 
-        LOGGER.debug("Validated token by user: {}. matchesUser: {}, isExpired: {}", user.getUsername(), matchesUser, isExpired);
-        return matchesUser && isExpired;
+        LOGGER.debug("Validated token by user: {}. matchesUser: {}", user.getUsername(), matchesUser);
+        return matchesUser;
     }
 
     private Key getSecretKey() {
