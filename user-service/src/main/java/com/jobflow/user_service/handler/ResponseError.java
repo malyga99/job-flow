@@ -19,4 +19,8 @@ public class ResponseError {
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime time;
+
+    public static ResponseError buildResponseError(String message, int status) {
+        return new ResponseError(message, status, LocalDateTime.now());
+    }
 }

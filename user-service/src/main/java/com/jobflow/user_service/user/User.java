@@ -30,10 +30,10 @@ public class User implements UserDetails {
     @Column(name = "lastname", length = 50, nullable = false)
     private String lastname;
 
-    @Column(name = "login", length = 30, nullable = false, unique=true)
+    @Column(name = "login", length = 50, nullable = false, unique=true)
     private String login;
 
-    @Column(name = "password", length = 30)
+    @Column(name = "password", length = 50)
     private String password;
 
     @Enumerated(value = STRING)
