@@ -2,14 +2,14 @@ networks:
   job-flow-network:
 
 volumes:
-  pgdata:
+  jobflow-user-pgdata:
 
 services:
-  db:
+  jobflow-user-db:
+    image: postgres:latest
+    container_name: jobflow-user-db
     networks:
       - job-flow-network
-    image: postgres:latest
-    container_name: userservicepostgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -17,7 +17,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - jobflow-user-pgdata:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
       interval: 10s
@@ -26,18 +26,18 @@ services:
       start_period: 10s
     restart: always
 
-  app:
-    networks:
-      - job-flow-network
+  jobflow-user-service:
     build:
       context: .
+    container_name: jobflow-user-service
     env_file:
       - .env
-    container_name: user-service-app
+    networks:
+      - job-flow-network
     ports:
       - "8080:8080"
     depends_on:
-      db:
+      jobflow-user-db:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]

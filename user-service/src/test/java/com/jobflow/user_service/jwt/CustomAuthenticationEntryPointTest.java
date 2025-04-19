@@ -43,12 +43,10 @@ class CustomAuthenticationEntryPointTest {
     @InjectMocks
     private CustomAuthenticationEntryPoint authenticationEntryPoint;
 
-    private SecurityContext securityContext;
-
     @Test
     public void commence_returnAuthenticationException() throws ServletException, IOException {
         String errorMessage = "Invalid token";
-        String expectedJson = "{\"message\": \"Invalid token\", \"status\": 401, \"time\": 2025-01-01 01:01}";
+        String expectedJson = "{\"message\": \"Invalid token\", \"status\": 401, \"time\": 2021-01-01 01:01}";
         ArgumentCaptor<ResponseError> argumentCaptor = ArgumentCaptor.forClass(ResponseError.class);
 
         when(authenticationException.getMessage()).thenReturn(errorMessage);

@@ -56,7 +56,7 @@ class JwtServiceImplTest {
 
     @Test
     public void generateAccessToken_withClaims_returnGeneratedTokenWithClaims() {
-        String token = jwtService.generateAccessToken(Map.of("first-claim", "first-value", "second-claim", "second-value"),userDetails);
+        String token = jwtService.generateAccessToken(Map.of("first-claim", "first-value", "second-claim", "second-value"), userDetails);
 
         assertNotNull(token);
         assertFalse(token.isEmpty());
