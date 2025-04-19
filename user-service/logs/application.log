@@ -1,0 +1,155 @@
+2025-04-17 22:41:38 ERROR [c.j.u.j.CustomAuthenticationEntryPoint] - [Authentication Error]: null for request: null by user: Anonymous
+2025-04-17 22:46:50 ERROR [c.j.u.j.CustomAuthenticationEntryPoint] - [Authentication Error]: Invalid token for request: null by user: Anonymous
+2025-04-17 22:47:04 ERROR [c.j.u.j.CustomAuthenticationEntryPoint] - [Authentication Error]: Invalid token for request: null by user: Anonymous
+2025-04-17 22:49:17 ERROR [c.j.u.j.CustomAuthenticationEntryPoint] - [Authentication Error]: Invalid token for request: null by user: Anonymous
+2025-04-17 22:53:33 ERROR [c.j.u.jwt.CustomAccessDeniedHandler] - [Authorization Error]: Access denied for request: null by user: Anonymous
+2025-04-17 22:56:52 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 22:56:52 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - No JWT token in Authorization header
+2025-04-17 22:58:31 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 22:58:31 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - No JWT token in Authorization header
+2025-04-17 23:00:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:00:33 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:02:31 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:02:31 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:02:58 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:02:58 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:03:59 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:04:18 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:11:01 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:11:01 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:12:30 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:12:30 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:12:30 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Authentication set for user: IvanIvanov@gmail.com
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - No JWT token in Authorization header
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Authentication set for user: IvanIvanov@gmail.com
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:12:34 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - No JWT token in Authorization header
+2025-04-17 23:14:29 ERROR [c.j.u.jwt.CustomAccessDeniedHandler] - [Authorization Error]: Access denied for request: null by user: Anonymous
+2025-04-17 23:15:05 ERROR [c.j.u.jwt.CustomAccessDeniedHandler] - [Authorization Error]: Access denied for request: null by user: Anonymous
+2025-04-17 23:15:05 ERROR [c.j.u.j.CustomAuthenticationEntryPoint] - [Authentication Error]: Invalid token for request: null by user: Anonymous
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - No JWT token in Authorization header
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Authentication set for user: IvanIvanov@gmail.com
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:15:05 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - No JWT token in Authorization header
+2025-04-17 23:25:25 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:27:21 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:29:09 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:29:28 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:29:51 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:30:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:30:17 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:31:07 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:31:31 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:32:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:32:31 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:37:32 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:37:32 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:39:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:39:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:39:30 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:39:30 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:40:05 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:40:05 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:40:05 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:40:05 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:40:05 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating refresh token for user: IvanIvanov@gmail.com
+2025-04-17 23:40:05 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:40:05 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating refresh token for user: IvanIvanov@gmail.com
+2025-04-17 23:40:05 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:41:43 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:41:43 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:42:56 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:42:56 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:44:37 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:44:38 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:44:38 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:44:38 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Validated token by user: NotIvanIvanov@gmail.com. matchesUser: false, isExpired: true
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating refresh token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Validated token by user: NotIvanIvanov@gmail.com. matchesUser: false, isExpired: true
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating refresh token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Validated token by user: IvanIvanov@gmail.com. matchesUser: true, isExpired: true
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:47:03 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating refresh token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Validated token by user: NotIvanIvanov@gmail.com. matchesUser: false
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating refresh token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Validated token by user: IvanIvanov@gmail.com. matchesUser: true
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:08 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 ERROR [c.j.u.jwt.CustomAccessDeniedHandler] - [Authorization Error]: Access denied for request: null by user: Anonymous
+2025-04-17 23:48:23 ERROR [c.j.u.j.CustomAuthenticationEntryPoint] - [Authentication Error]: Invalid token for request: null by user: Anonymous
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - No JWT token in Authorization header
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Extracting user by login: IvanIvanov@gmail.com from token
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Authentication set for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - Starting JWT auth filter for request: null
+2025-04-17 23:48:23 DEBUG [c.j.u.jwt.JwtAuthenticationFilter] - No JWT token in Authorization header
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating refresh token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Validated token by user: NotIvanIvanov@gmail.com. matchesUser: false
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating refresh token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Validated token by user: IvanIvanov@gmail.com. matchesUser: true
+2025-04-17 23:48:23 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Generating access token for user: IvanIvanov@gmail.com
+2025-04-17 23:48:24 DEBUG [c.j.user_service.jwt.JwtServiceImpl] - Extracted claims from token. Subject: IvanIvanov@gmail.com
