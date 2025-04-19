@@ -66,6 +66,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check Docker
+        run: docker --version
+
       - name: Set up java
         uses: actions/setup-java@v4
         with:
@@ -75,8 +78,10 @@ jobs:
       - name: Run integration tests
         run: mvn verify
 
-      - name: Upload Jacoco Coverage report
-        uses: actions/upload-artifact@v4
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          name: jacoco-report
-          path: user-service/target/site/jacoco/
+          files: target/site/jacoco/jacoco.xml
+          flags: combined
+          name: full-coverage
+          fail_ci_if_error: true

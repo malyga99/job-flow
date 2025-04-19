@@ -1,5 +1,6 @@
 package com.jobflow.user_service.jwt;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.handler.ResponseError;
 import jakarta.servlet.ServletException;
@@ -12,6 +13,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -43,6 +45,11 @@ class CustomAuthenticationEntryPointTest {
     @InjectMocks
     private CustomAuthenticationEntryPoint authenticationEntryPoint;
 
+    @BeforeEach
+    public void setup() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     public void commence_returnAuthenticationException() throws ServletException, IOException {
         String errorMessage = "Invalid token";
@@ -65,6 +72,30 @@ class CustomAuthenticationEntryPointTest {
         assertEquals(errorMessage, responseError.getMessage());
         assertEquals(HttpServletResponse.SC_UNAUTHORIZED, responseError.getStatus());
         assertNotNull(responseError.getTime());
+    }
+
+    @Test
+    public void commence_withAuthenticatedUser_returnAuthenticationException() throws IOException, ServletException {
+        String errorMessage = "Invalid token";
+        String expectedJson = "{\"message\": \"Invalid token\", \"status\": 401, \"time\": 2021-01-01 01:01}";
+
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getName()).thenReturn("mockUser");
+
+        SecurityContext context = mock(SecurityContext.class);
+        SecurityContextHolder.setContext(context);
+        when(context.getAuthentication()).thenReturn(authentication);
+
+        when(authenticationException.getMessage()).thenReturn(errorMessage);
+        when(objectMapper.writeValueAsString(any(ResponseError.class))).thenReturn(expectedJson);
+        when(response.getWriter()).thenReturn(printWriter);
+
+        authenticationEntryPoint.commence(request, response, authenticationException);
+
+        verify(objectMapper).writeValueAsString(any(ResponseError.class));
+        verify(printWriter).write(expectedJson);
+        verify(response).setContentType("application/json");
+        verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     }
 
 }
