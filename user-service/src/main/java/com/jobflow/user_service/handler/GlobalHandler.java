@@ -9,11 +9,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import static java.util.stream.Collectors.joining;
 
 @RestControllerAdvice
@@ -34,6 +29,7 @@ public class GlobalHandler {
         String errorMessages = exc.getFieldErrors().stream()
                 .map(el -> "%s: %s".formatted(el.getField(), el.getDefaultMessage()))
                 .collect(joining(", "));
+        LOGGER.error("Validation Exception: {}", errorMessages);
 
         ResponseError responseError = ResponseError.buildResponseError(errorMessages, HttpStatus.BAD_REQUEST.value());
 

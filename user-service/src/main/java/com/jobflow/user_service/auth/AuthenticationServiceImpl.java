@@ -1,7 +1,6 @@
 package com.jobflow.user_service.auth;
 
 import com.jobflow.user_service.jwt.JwtService;
-import com.jobflow.user_service.jwt.JwtServiceImpl;
 import com.jobflow.user_service.user.User;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
