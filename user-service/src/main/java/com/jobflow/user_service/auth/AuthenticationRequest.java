@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Authentication request details")
+@Schema(description = "Authentication request")
 public class AuthenticationRequest {
 
     @NotBlank(message = "Login must be filled in")
