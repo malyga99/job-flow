@@ -1,6 +1,7 @@
 package com.jobflow.user_service.handler;
 
 import com.jobflow.user_service.exception.UserNotFoundException;
+import org.apache.tomcat.websocket.AuthenticationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,14 @@ public class GlobalHandler {
         ResponseError responseError = ResponseError.buildResponseError(errorMessages, HttpStatus.BAD_REQUEST.value());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ResponseError> authenticationExcHandler(AuthenticationException exc) {
+        LOGGER.error("[Authentication Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.UNAUTHORIZED.value());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseError);
     }
 
 }

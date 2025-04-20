@@ -58,4 +58,13 @@ public class AuthenticationController {
         LOGGER.info("[POST] Authenticate request received for login: {}", authenticationRequest.getLogin());
         return ResponseEntity.ok(authenticationService.auth(authenticationRequest));
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @RequestBody LogoutRequest logoutRequest
+    ) {
+        LOGGER.info("[POST] Logout request received");
+        authenticationService.logout(logoutRequest);
+        return ResponseEntity.ok().build();
+    }
 }
