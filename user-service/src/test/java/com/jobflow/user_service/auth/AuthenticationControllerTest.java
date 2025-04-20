@@ -35,9 +35,13 @@ class AuthenticationControllerTest {
 
     private AuthenticationRequest authenticationRequest;
 
+    private LogoutRequest logoutRequest;
+
     private AuthenticationResponse authenticationResponse;
 
     private String authenticationRequestJson;
+
+    private String logoutRequestJson;
 
     private final static ObjectMapper objectMapper = new ObjectMapper();
 
@@ -49,6 +53,8 @@ class AuthenticationControllerTest {
         authenticationRequest = new AuthenticationRequest("IvanIvanov@gmail.com", "abcde");
         authenticationResponse = new AuthenticationResponse("access.jwt.token", "refresh.jwt.token");
         authenticationRequestJson = objectMapper.writeValueAsString(authenticationRequest);
+        logoutRequest = new LogoutRequest("refresh.jwt.token");
+        logoutRequestJson = objectMapper.writeValueAsString(logoutRequest);
     }
 
     @Test
@@ -98,6 +104,19 @@ class AuthenticationControllerTest {
                 .andExpect(jsonPath("$.time").exists());
 
         verify(authenticationService, times(1)).auth(authenticationRequest);
+    }
+
+    @Test
+    public void logout_successfullyRevokeToken() throws Exception {
+        doNothing().when(authenticationService).logout(logoutRequest);
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(logoutRequestJson))
+                .andExpect(status().isOk());
+
+        verify(authenticationService, times(1)).logout(logoutRequest);
     }
 
 }

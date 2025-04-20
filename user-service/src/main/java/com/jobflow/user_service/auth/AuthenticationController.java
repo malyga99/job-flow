@@ -61,7 +61,7 @@ public class AuthenticationController {
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @RequestBody LogoutRequest logoutRequest
+            @RequestBody @Valid LogoutRequest logoutRequest
     ) {
         LOGGER.info("[POST] Logout request received");
         authenticationService.logout(logoutRequest);

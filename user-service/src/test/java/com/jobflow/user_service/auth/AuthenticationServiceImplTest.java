@@ -4,16 +4,25 @@ import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
+import com.jobflow.user_service.user.UserService;
+import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+
+import java.time.Instant;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -30,22 +39,37 @@ class AuthenticationServiceImplTest {
     @Mock
     private Authentication authentication;
 
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private Claims claims;
+
+    @Mock
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
     @InjectMocks
     private AuthenticationServiceImpl authenticationService;
-
-    private static final String ACCESS_TOKEN = "my.access.token";
-
-    private static final String REFRESH_TOKEN = "my.refresh.token";
 
     private User user;
 
     private AuthenticationRequest authenticationRequest;
 
+    private LogoutRequest logoutRequest;
+
     private UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken;
+
+    private static final String ACCESS_TOKEN = "my.access.token";
+
+    private static final String REFRESH_TOKEN = "my.refresh.token";
 
     @BeforeEach
     public void setup() {
         authenticationRequest = new AuthenticationRequest("IvanIvanov@gmail.com", "abcde");
+        logoutRequest = new LogoutRequest(REFRESH_TOKEN);
         usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
                 authenticationRequest.getLogin().toLowerCase(),
                 authenticationRequest.getPassword()
@@ -98,6 +122,47 @@ class AuthenticationServiceImplTest {
         verifyNoInteractions(jwtService);
     }
 
+    @Test
+    public void logout_successfullyRevokeToken() {
+        Date expiration = Date.from(Instant.now().plusSeconds(3600L));
+        String tokenId = "token-id";
+        ArgumentCaptor<Long> ttlCaptor = ArgumentCaptor.forClass(Long.class);
+
+        when(userService.getCurrentUser()).thenReturn(user);
+        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(claims.getExpiration()).thenReturn(expiration);
+        when(claims.getId()).thenReturn(tokenId);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        authenticationService.logout(logoutRequest);
+
+        verify(jwtService, times(1)).extractClaims(REFRESH_TOKEN);
+        verify(valueOperations, times(1)).set(
+                eq("blacklist:refresh:token-id"),
+                eq("true"),
+                ttlCaptor.capture(),
+                eq(TimeUnit.SECONDS)
+        );
+
+        Long ttl = ttlCaptor.getValue();
+        assertTrue(ttl >= 3595L && ttl <= 3600L);
+    }
+
+    @Test
+    public void logout_expiredToken_skipBlacklist() {
+        Date expiration = Date.from(Instant.now().minusSeconds(60L));
+        String tokenId = "token-id";
+
+        when(userService.getCurrentUser()).thenReturn(user);
+        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(claims.getExpiration()).thenReturn(expiration);
+        when(claims.getId()).thenReturn(tokenId);
+
+        authenticationService.logout(logoutRequest);
+
+        verify(jwtService, times(1)).extractClaims(REFRESH_TOKEN);
+        verifyNoInteractions(redisTemplate, valueOperations);
+    }
 
 
 }
