@@ -16,6 +16,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Duration;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -239,6 +240,140 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(error.getTime());
     }
 
+    @Test
+    public void refresh_returnAccessToken() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String accessToken = authenticationResponse.getAccessToken();
+        String refreshToken = authenticationResponse.getRefreshToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
+        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/auth/refresh",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        String refreshedToken = response.getBody();
+        assertNotNull(refreshedToken);
+
+        String refreshedTokenLogin = jwtService.extractLogin(refreshedToken);
+        assertEquals(LOGIN, refreshedTokenLogin);
+    }
+
+    @Test
+    public void refresh_tokenRevoked_returnUnauthorized() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String accessToken = authenticationResponse.getAccessToken();
+        String refreshToken = authenticationResponse.getRefreshToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        String refreshTokenId = jwtService.extractClaims(refreshToken).getId();
+        revokeToken(refreshTokenId);
+
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
+        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, headers);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/refresh",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void refresh_expiredRefreshToken_doesNotRefresh() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = generateExpiredRefreshToken();
+        String accessToken = authenticationResponse.getAccessToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
+        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, headers);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/refresh",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void refresh_invalidData_returnBadRequest() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String accessToken = authenticationResponse.getAccessToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(null);
+        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, headers);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/refresh",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertNotNull(error.getTime());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
+    }
+
+    @Test
+    public void refresh_withoutToken_returnUnauthorized() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = authenticationResponse.getRefreshToken();
+
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
+        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, null);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/refresh",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
     private <T> HttpEntity<T> createRequest(T request, HttpHeaders headers) {
         return new HttpEntity<>(request, headers);
     }
@@ -262,6 +397,13 @@ public class AuthenticationIT extends BaseIT {
                 .setExpiration(new Date(System.currentTimeMillis() - 1000L))
                 .signWith(jwtService.getSecretKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    private void revokeToken(String refreshTokenId) {
+        redisTemplate.opsForValue().set(
+                "blacklist:refresh:" + refreshTokenId,
+                "true",
+                Duration.ofMinutes(1L));
     }
 
     private void initDb() {

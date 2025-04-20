@@ -29,7 +29,7 @@ public class AuthenticationController {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationController.class);
 
     @Operation(
-            summary = "Authenticates user",
+            summary = "Authenticate user",
             description = "Authenticates a user and returns access/refresh JWT tokens",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Authentication successful",
@@ -85,5 +85,32 @@ public class AuthenticationController {
         LOGGER.info("[POST] Logout request received");
         authenticationService.logout(logoutRequest);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "Refresh token",
+            description = "Refreshes token and returns a new access token",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Token refresh successful",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = AuthenticationResponse.class))),
+
+                    @ApiResponse(responseCode = "400", description = "Validation error",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "401", description = "Authentication exception, e.g revoked token",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class)))
+            }
+    )
+    @PostMapping("/refresh")
+    public ResponseEntity<String> refreshToken(
+            @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Refresh token details", required = true
+            ) RefreshTokenRequest refreshTokenRequest
+    ) {
+        LOGGER.info("[POST] Refresh token request received");
+        return ResponseEntity.ok(authenticationService.refreshToken(refreshTokenRequest));
     }
 }

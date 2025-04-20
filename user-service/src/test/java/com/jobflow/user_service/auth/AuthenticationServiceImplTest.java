@@ -1,5 +1,6 @@
 package com.jobflow.user_service.auth;
 
+import com.jobflow.user_service.exception.TokenRevokedException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.user.Role;
@@ -60,6 +61,8 @@ class AuthenticationServiceImplTest {
 
     private LogoutRequest logoutRequest;
 
+    private RefreshTokenRequest refreshTokenRequest;
+
     private UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken;
 
     private static final String ACCESS_TOKEN = "my.access.token";
@@ -70,6 +73,7 @@ class AuthenticationServiceImplTest {
     public void setup() {
         authenticationRequest = new AuthenticationRequest("IvanIvanov@gmail.com", "abcde");
         logoutRequest = new LogoutRequest(REFRESH_TOKEN);
+        refreshTokenRequest = new RefreshTokenRequest(REFRESH_TOKEN);
         usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
                 authenticationRequest.getLogin().toLowerCase(),
                 authenticationRequest.getPassword()
@@ -162,6 +166,36 @@ class AuthenticationServiceImplTest {
 
         verify(jwtService, times(1)).extractClaims(REFRESH_TOKEN);
         verifyNoInteractions(redisTemplate, valueOperations);
+    }
+
+    @Test
+    public void refresh_returnAccessToken() {
+        String tokenId = "token-id";
+        when(userService.getCurrentUser()).thenReturn(user);
+        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(claims.getId()).thenReturn(tokenId);
+        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
+        when(jwtService.generateAccessToken(user)).thenReturn(ACCESS_TOKEN);
+
+        String result = authenticationService.refreshToken(refreshTokenRequest);
+
+        assertNotNull(result);
+        assertEquals(ACCESS_TOKEN, result);
+
+        verify(jwtService, times(1)).generateAccessToken(user);
+    }
+    @Test
+    public void refresh_ifRevoked_throwExc() {
+        String tokenId = "token-id";
+        when(userService.getCurrentUser()).thenReturn(user);
+        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(claims.getId()).thenReturn(tokenId);
+        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.TRUE);
+
+        TokenRevokedException tokenRevokedException = assertThrows(TokenRevokedException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
+        assertEquals("Token with id: token-id revoked", tokenRevokedException.getMessage());
+
+        verify(jwtService, never()).generateAccessToken(user);
     }
 
 
