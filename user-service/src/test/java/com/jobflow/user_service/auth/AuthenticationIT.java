@@ -6,15 +6,17 @@ import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -33,19 +35,24 @@ public class AuthenticationIT extends BaseIT {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     private AuthenticationRequest authenticationRequest;
 
     private static final String LOGIN = "ivanivanov@gmail.com";
+    private static final String PASSWORD = "abcde";
+    private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
 
     @BeforeEach
     public void setup() {
         initDb();
-        authenticationRequest = new AuthenticationRequest(LOGIN, "abcde");
+        authenticationRequest = new AuthenticationRequest(LOGIN, PASSWORD);
     }
 
     @Test
     public void auth_returnAuthResponse() {
-        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest);
+        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest, null);
         ResponseEntity<AuthenticationResponse> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,
@@ -58,7 +65,7 @@ public class AuthenticationIT extends BaseIT {
         AuthenticationResponse responseBody = response.getBody();
         assertNotNull(responseBody);
         assertNotNull(responseBody.getAccessToken());
-        assertNotNull(responseBody.getAccessToken());
+        assertNotNull(responseBody.getRefreshToken());
 
         String loginAccessToken = jwtService.extractLogin(responseBody.getAccessToken());
         String loginRefreshToken = jwtService.extractLogin(responseBody.getRefreshToken());
@@ -69,7 +76,7 @@ public class AuthenticationIT extends BaseIT {
     @Test
     public void auth_invalidData_returnBadRequest() {
         AuthenticationRequest invalidRequest = new AuthenticationRequest("", "");
-        HttpEntity<AuthenticationRequest> request = createRequest(invalidRequest);
+        HttpEntity<AuthenticationRequest> request = createRequest(invalidRequest, null);
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,
@@ -88,8 +95,8 @@ public class AuthenticationIT extends BaseIT {
 
     @Test
     public void auth_userNotFound_returnNotFound() {
-        authenticationRequest.setLogin("not" + LOGIN);
-        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest);
+        authenticationRequest.setLogin("incorrectLogin");
+        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest, null);
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,
@@ -101,7 +108,7 @@ public class AuthenticationIT extends BaseIT {
 
         ResponseError error = response.getBody();
         assertNotNull(error);
-        assertEquals("User with login: " + authenticationRequest.getLogin() + " not found", error.getMessage());
+        assertEquals("User with login: " + authenticationRequest.getLogin().toLowerCase() + " not found", error.getMessage());
         assertEquals(HttpStatus.NOT_FOUND.value(), error.getStatus());
         assertNotNull(error.getTime());
     }
@@ -110,7 +117,7 @@ public class AuthenticationIT extends BaseIT {
     @Test
     public void auth_wrongPassword_returnUnauthorized() {
         authenticationRequest.setPassword("incorrectPassword");
-        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest);
+        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest, null);
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,
@@ -127,14 +134,140 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(error.getTime());
     }
 
-    private HttpEntity<AuthenticationRequest> createRequest(AuthenticationRequest authenticationRequest) {
-        return new HttpEntity<>(authenticationRequest);
+    @Test
+    public void logout_successfullyRevokeToken() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = authenticationResponse.getRefreshToken();
+        String accessToken = authenticationResponse.getAccessToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        LogoutRequest logoutRequest = new LogoutRequest(refreshToken);
+        HttpEntity<LogoutRequest> request = createRequest(logoutRequest, headers);
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/auth/logout",
+                HttpMethod.POST,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        String tokenId = jwtService.extractClaims(refreshToken).getId();
+        String key = String.format(BLACKLIST_KEY, tokenId);
+        String value = redisTemplate.opsForValue().get(key);
+
+        assertNotNull(value);
+        assertEquals("true", value);
+    }
+
+    @Test
+    public void logout_expiredRefreshToken_doesNotRevoke() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = generateExpiredRefreshToken();
+        String accessToken = authenticationResponse.getAccessToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        LogoutRequest logoutRequest = new LogoutRequest(refreshToken);
+        HttpEntity<LogoutRequest> request = createRequest(logoutRequest, headers);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/logout",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void logout_invalidData_returnBadRequest() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String accessToken = authenticationResponse.getAccessToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        LogoutRequest logoutRequest = new LogoutRequest(null);
+        HttpEntity<LogoutRequest> request = createRequest(logoutRequest, headers);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/logout",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertNotNull(error.getTime());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
+    }
+
+    @Test
+    public void logout_withoutToken_returnUnauthorized() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = authenticationResponse.getRefreshToken();
+
+        LogoutRequest logoutRequest = new LogoutRequest(refreshToken);
+        HttpEntity<LogoutRequest> request = createRequest(logoutRequest, null);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/logout",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    private <T> HttpEntity<T> createRequest(T request, HttpHeaders headers) {
+        return new HttpEntity<>(request, headers);
+    }
+
+    private AuthenticationResponse authenticateUser() {
+        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest, null);
+        ResponseEntity<AuthenticationResponse> response = restTemplate.exchange(
+                "/api/v1/auth",
+                HttpMethod.POST,
+                request,
+                AuthenticationResponse.class
+        );
+
+        return response.getBody();
+    }
+
+    private String generateExpiredRefreshToken() {
+        return Jwts.builder()
+                .setSubject(LOGIN)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() - 1000L))
+                .signWith(jwtService.getSecretKey(), SignatureAlgorithm.HS256)
+                .compact();
     }
 
     private void initDb() {
         userRepository.deleteAll();
 
-        User user = new User(null, "Ivan", "Ivanov", LOGIN, passwordEncoder.encode("abcde"), Role.ROLE_USER);
+        User user = new User(null, "Ivan", "Ivanov", LOGIN, passwordEncoder.encode(PASSWORD), Role.ROLE_USER);
         userRepository.save(user);
     }
 }

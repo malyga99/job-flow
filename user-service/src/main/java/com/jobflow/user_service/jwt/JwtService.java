@@ -3,6 +3,7 @@ package com.jobflow.user_service.jwt;
 import io.jsonwebtoken.Claims;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.security.Key;
 import java.util.Date;
 import java.util.Map;
 
@@ -23,4 +24,6 @@ public interface JwtService {
     Date extractExpiration(String token);
 
     boolean isValid(UserDetails user, String token);
+
+    Key getSecretKey();
 }

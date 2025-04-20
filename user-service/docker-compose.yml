@@ -3,6 +3,7 @@ networks:
 
 volumes:
   jobflow-user-pgdata:
+  jobflow-user-redisdata:
 
 services:
   jobflow-user-db:
@@ -39,8 +40,30 @@ services:
     depends_on:
       jobflow-user-db:
         condition: service_healthy
+      jobflow-user-redis:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+
+  jobflow-user-redis:
+    image: redis/redis-stack:latest
+    container_name: jobflow-user-redis
+    networks:
+      - job-flow-network
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+    volumes:
+      - jobflow-user-redisdata:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5

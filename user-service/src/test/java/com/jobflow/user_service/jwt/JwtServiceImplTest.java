@@ -146,5 +146,12 @@ class JwtServiceImplTest {
         assertFalse(result);
     }
 
+    @Test
+    public void getSecretKey_returnSecretKey() {
+        Key key = jwtService.getSecretKey();
+
+        assertNotNull(key);
+    }
+
 
 }

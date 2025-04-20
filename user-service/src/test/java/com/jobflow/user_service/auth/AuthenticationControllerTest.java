@@ -35,9 +35,13 @@ class AuthenticationControllerTest {
 
     private AuthenticationRequest authenticationRequest;
 
+    private LogoutRequest logoutRequest;
+
     private AuthenticationResponse authenticationResponse;
 
     private String authenticationRequestJson;
+
+    private String logoutRequestJson;
 
     private final static ObjectMapper objectMapper = new ObjectMapper();
 
@@ -49,6 +53,8 @@ class AuthenticationControllerTest {
         authenticationRequest = new AuthenticationRequest("IvanIvanov@gmail.com", "abcde");
         authenticationResponse = new AuthenticationResponse("access.jwt.token", "refresh.jwt.token");
         authenticationRequestJson = objectMapper.writeValueAsString(authenticationRequest);
+        logoutRequest = new LogoutRequest("refresh.jwt.token");
+        logoutRequestJson = objectMapper.writeValueAsString(logoutRequest);
     }
 
     @Test
@@ -77,8 +83,8 @@ class AuthenticationControllerTest {
                         .content(invalidRequestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists())
-                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()))
-                .andExpect(jsonPath("$.time").exists());
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
         verifyNoInteractions(authenticationService);
     }
@@ -94,10 +100,40 @@ class AuthenticationControllerTest {
                         .content(authenticationRequestJson))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(userNotFoundException.getMessage()))
-                .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND.value()))
-                .andExpect(jsonPath("$.time").exists());
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND.value()));
 
         verify(authenticationService, times(1)).auth(authenticationRequest);
+    }
+
+    @Test
+    public void logout_successfullyRevokeToken() throws Exception {
+        doNothing().when(authenticationService).logout(logoutRequest);
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(logoutRequestJson))
+                .andExpect(status().isOk());
+
+        verify(authenticationService, times(1)).logout(logoutRequest);
+    }
+
+    @Test
+    public void logout_invalidData_returnBadRequest() throws Exception {
+        LogoutRequest invalidRequest = new LogoutRequest("");
+        String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
+
+        verifyNoInteractions(authenticationService);
     }
 
 }
