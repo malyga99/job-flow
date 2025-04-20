@@ -83,8 +83,8 @@ class AuthenticationControllerTest {
                         .content(invalidRequestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists())
-                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()))
-                .andExpect(jsonPath("$.time").exists());
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
         verifyNoInteractions(authenticationService);
     }
@@ -100,8 +100,8 @@ class AuthenticationControllerTest {
                         .content(authenticationRequestJson))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(userNotFoundException.getMessage()))
-                .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND.value()))
-                .andExpect(jsonPath("$.time").exists());
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND.value()));
 
         verify(authenticationService, times(1)).auth(authenticationRequest);
     }
@@ -117,6 +117,23 @@ class AuthenticationControllerTest {
                 .andExpect(status().isOk());
 
         verify(authenticationService, times(1)).logout(logoutRequest);
+    }
+
+    @Test
+    public void logout_invalidData_returnBadRequest() throws Exception {
+        LogoutRequest invalidRequest = new LogoutRequest("");
+        String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
+
+        verifyNoInteractions(authenticationService);
     }
 
 }
