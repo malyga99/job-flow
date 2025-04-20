@@ -59,9 +59,28 @@ public class AuthenticationController {
         return ResponseEntity.ok(authenticationService.auth(authenticationRequest));
     }
 
+    @Operation(
+            summary = "Logout user",
+            description = "Logs out and revokes the refresh token",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Logout successful",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = AuthenticationResponse.class))),
+
+                    @ApiResponse(responseCode = "400", description = "Validation error",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "401", description = "Authentication exception",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class)))
+            }
+    )
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @RequestBody @Valid LogoutRequest logoutRequest
+            @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Logout details", required = true
+            ) LogoutRequest logoutRequest
     ) {
         LOGGER.info("[POST] Logout request received");
         authenticationService.logout(logoutRequest);

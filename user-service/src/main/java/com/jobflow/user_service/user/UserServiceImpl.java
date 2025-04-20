@@ -1,9 +1,10 @@
 package com.jobflow.user_service.user;
 
-import com.jobflow.user_service.exception.AuthenticationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +17,7 @@ public class UserServiceImpl implements UserService {
     public User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new AuthenticationException("Current user is not authenticated");
+            throw new AuthenticationCredentialsNotFoundException("Current user is not authenticated");
         }
 
         User currentUser = (User) authentication.getPrincipal();

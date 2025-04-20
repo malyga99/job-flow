@@ -37,12 +37,5 @@ public class GlobalHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
     }
 
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ResponseError> authenticationExcHandler(AuthenticationException exc) {
-        LOGGER.error("[Authentication Exception]: {}", exc.getMessage());
-        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.UNAUTHORIZED.value());
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseError);
-    }
 
 }

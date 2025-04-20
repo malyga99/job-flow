@@ -100,7 +100,8 @@ public class JwtServiceImpl implements JwtService {
         return matchesUser;
     }
 
-    private Key getSecretKey() {
+    @Override
+    public Key getSecretKey() {
         byte[] decodeKey = Decoders.BASE64.decode(SECRET_KEY);
         return Keys.hmacShaKeyFor(decodeKey);
     }

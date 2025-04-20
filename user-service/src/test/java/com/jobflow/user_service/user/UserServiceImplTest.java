@@ -1,13 +1,14 @@
 package com.jobflow.user_service.user;
 
-import com.jobflow.user_service.exception.AuthenticationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -56,7 +57,7 @@ class UserServiceImplTest {
     public void getCurrentUser_withoutAuthentication_throwExc() {
         when(securityContext.getAuthentication()).thenReturn(null);
 
-        AuthenticationException authenticationException = assertThrows(AuthenticationException.class, () -> userService.getCurrentUser());
+        AuthenticationCredentialsNotFoundException authenticationException = assertThrows(AuthenticationCredentialsNotFoundException.class, () -> userService.getCurrentUser());
         assertEquals("Current user is not authenticated", authenticationException.getMessage());
     }
 
@@ -65,7 +66,7 @@ class UserServiceImplTest {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(false);
 
-        AuthenticationException authenticationException = assertThrows(AuthenticationException.class, () -> userService.getCurrentUser());
+        AuthenticationCredentialsNotFoundException authenticationException = assertThrows(AuthenticationCredentialsNotFoundException.class, () -> userService.getCurrentUser());
         assertEquals("Current user is not authenticated", authenticationException.getMessage());
 
         verify(authentication, times(1)).isAuthenticated();
