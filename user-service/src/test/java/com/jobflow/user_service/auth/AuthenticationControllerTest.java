@@ -2,6 +2,7 @@ package com.jobflow.user_service.auth;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobflow.user_service.exception.TokenRevokedException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.handler.GlobalHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -158,4 +159,37 @@ class AuthenticationControllerTest {
         verify(authenticationService, times(1)).refreshToken(refreshTokenRequest);
     }
 
+    @Test
+    public void refresh_invalidData_returnBadRequest() throws Exception {
+        RefreshTokenRequest invalidRequest = new RefreshTokenRequest("");
+        String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
+
+        verifyNoInteractions(authenticationService);
+    }
+
+    @Test
+    public void refresh_revokedToken_returnUnauthorized() throws Exception {
+        var tokenRevokedException = new TokenRevokedException("Token with id: some-id revoked");
+        when(authenticationService.refreshToken(refreshTokenRequest)).thenThrow(tokenRevokedException);
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(refreshTokenRequestJson))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value(tokenRevokedException.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.UNAUTHORIZED.value()));
+
+        verify(authenticationService, times(1)).refreshToken(refreshTokenRequest);
+    }
 }
