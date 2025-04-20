@@ -37,13 +37,19 @@ class AuthenticationControllerTest {
 
     private LogoutRequest logoutRequest;
 
+    private RefreshTokenRequest refreshTokenRequest;
+
     private AuthenticationResponse authenticationResponse;
 
     private String authenticationRequestJson;
 
     private String logoutRequestJson;
 
+    private String refreshTokenRequestJson;
+
     private final static ObjectMapper objectMapper = new ObjectMapper();
+    private static final String REFRESH_TOKEN = "refresh.jwt.token";
+    private static final String ACCESS_TOKEN = "access.jwt.token";
 
     @BeforeEach
     public void setup() throws JsonProcessingException {
@@ -51,9 +57,11 @@ class AuthenticationControllerTest {
                 .setControllerAdvice(new GlobalHandler())
                 .build();
         authenticationRequest = new AuthenticationRequest("IvanIvanov@gmail.com", "abcde");
-        authenticationResponse = new AuthenticationResponse("access.jwt.token", "refresh.jwt.token");
+        authenticationResponse = new AuthenticationResponse(ACCESS_TOKEN, REFRESH_TOKEN);
         authenticationRequestJson = objectMapper.writeValueAsString(authenticationRequest);
-        logoutRequest = new LogoutRequest("refresh.jwt.token");
+        logoutRequest = new LogoutRequest(REFRESH_TOKEN);
+        refreshTokenRequest = new RefreshTokenRequest(REFRESH_TOKEN);
+        refreshTokenRequestJson = objectMapper.writeValueAsString(refreshTokenRequest);
         logoutRequestJson = objectMapper.writeValueAsString(logoutRequest);
     }
 
@@ -134,6 +142,20 @@ class AuthenticationControllerTest {
                 .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
         verifyNoInteractions(authenticationService);
+    }
+
+    @Test
+    public void refresh_successfullyRefreshToken() throws Exception {
+        when(authenticationService.refreshToken(refreshTokenRequest)).thenReturn(ACCESS_TOKEN);
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(refreshTokenRequestJson))
+                .andExpect(status().isOk())
+                .andExpect(content().string(ACCESS_TOKEN));
+
+        verify(authenticationService, times(1)).refreshToken(refreshTokenRequest);
     }
 
 }

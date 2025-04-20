@@ -73,6 +73,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public String refreshToken(RefreshTokenRequest refreshTokenRequest) {
         User currentUser = userService.getCurrentUser();
+        LOGGER.debug("Starting refresh token for user: {}", currentUser.getLogin());
 
         String refreshToken = refreshTokenRequest.getRefreshToken();
         Claims claims = jwtService.extractClaims(refreshToken);
@@ -80,6 +81,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String tokenId = claims.getId();
         validateIsTokenRevoked(tokenId);
 
+        LOGGER.debug("Successfully refreshed token for user: {}", currentUser.getLogin());
         return jwtService.generateAccessToken(currentUser);
     }
 

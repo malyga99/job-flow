@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Refresh token request")
 public class RefreshTokenRequest {
 
     @NotBlank(message = "Refresh token must be filled in")
