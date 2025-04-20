@@ -1,5 +1,6 @@
 package com.jobflow.user_service.auth;
 
+import com.jobflow.user_service.exception.TokenRevokedException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserService;
@@ -66,6 +67,28 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             LOGGER.debug("Successfully revoked refresh token with jti: {} (TTL: {} seconds) for user: {}", tokenId, ttl, currentUser.getLogin());
         } else {
             LOGGER.debug("Refresh token with jti: {} for user: {} already expired", tokenId, currentUser.getLogin());
+        }
+    }
+
+    @Override
+    public String refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        User currentUser = userService.getCurrentUser();
+
+        String refreshToken = refreshTokenRequest.getRefreshToken();
+        Claims claims = jwtService.extractClaims(refreshToken);
+
+        String tokenId = claims.getId();
+        validateIsTokenRevoked(tokenId);
+
+        return jwtService.generateAccessToken(currentUser);
+    }
+
+    private void validateIsTokenRevoked(String tokenId) {
+        String key = String.format(BLACKLIST_KEY, tokenId);
+        Boolean isRevoked = redisTemplate.hasKey(key);
+
+        if (Boolean.TRUE.equals(isRevoked)) {
+            throw new TokenRevokedException("Token with id: " + tokenId + " revoked");
         }
     }
 

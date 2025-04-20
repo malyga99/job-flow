@@ -1,5 +1,6 @@
 package com.jobflow.user_service.handler;
 
+import com.jobflow.user_service.exception.TokenRevokedException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import org.apache.tomcat.websocket.AuthenticationException;
 import org.slf4j.Logger;
@@ -23,6 +24,14 @@ public class GlobalHandler {
         ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.NOT_FOUND.value());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseError);
+    }
+
+    @ExceptionHandler(TokenRevokedException.class)
+    public ResponseEntity<ResponseError> tokenRevokedExcHandler(TokenRevokedException exc) {
+        LOGGER.error("[Token Revoked Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.UNAUTHORIZED.value());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseError);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

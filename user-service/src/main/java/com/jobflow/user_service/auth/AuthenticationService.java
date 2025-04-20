@@ -5,4 +5,6 @@ public interface AuthenticationService {
     AuthenticationResponse auth(AuthenticationRequest authenticationRequest);
 
     void logout(LogoutRequest logoutRequest);
+
+    String refreshToken(RefreshTokenRequest refreshTokenRequest);
 }
