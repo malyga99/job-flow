@@ -82,6 +82,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: target/site/jacoco/jacoco.xml
-          flags: combined
-          name: full-coverage
+          flags: user-service
+          name: user-service-coverage
           fail_ci_if_error: true
