@@ -5,6 +5,7 @@ import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
+import com.jobflow.user_service.user.UserRepository;
 import com.jobflow.user_service.user.UserService;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,7 @@ import org.springframework.security.core.Authentication;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -51,6 +53,9 @@ class AuthenticationServiceImplTest {
 
     @Mock
     private ValueOperations<String, String> valueOperations;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private AuthenticationServiceImpl authenticationService;
@@ -171,10 +176,11 @@ class AuthenticationServiceImplTest {
     @Test
     public void refresh_returnAccessToken() {
         String tokenId = "token-id";
-        when(userService.getCurrentUser()).thenReturn(user);
         when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
+        when(claims.getSubject()).thenReturn("subject");
+        when(userRepository.findByLogin("subject")).thenReturn(Optional.of(user));
         when(jwtService.generateAccessToken(user)).thenReturn(ACCESS_TOKEN);
 
         String result = authenticationService.refreshToken(refreshTokenRequest);
@@ -182,12 +188,12 @@ class AuthenticationServiceImplTest {
         assertNotNull(result);
         assertEquals(ACCESS_TOKEN, result);
 
+        verify(userRepository, times(1)).findByLogin("subject");
         verify(jwtService, times(1)).generateAccessToken(user);
     }
     @Test
     public void refresh_ifRevoked_throwExc() {
         String tokenId = "token-id";
-        when(userService.getCurrentUser()).thenReturn(user);
         when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.TRUE);
@@ -196,6 +202,22 @@ class AuthenticationServiceImplTest {
         assertEquals("Token with id: token-id revoked", tokenRevokedException.getMessage());
 
         verify(jwtService, never()).generateAccessToken(user);
+    }
+
+    @Test
+    public void refresh_userNotFound_throwExc() {
+        String tokenId = "token-id";
+        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(claims.getId()).thenReturn(tokenId);
+        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
+        when(claims.getSubject()).thenReturn("subject");
+        when(userRepository.findByLogin("subject")).thenReturn(Optional.empty());
+
+        UserNotFoundException userNotFoundException = assertThrows(UserNotFoundException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
+        assertEquals("User with login: subject not found", userNotFoundException.getMessage());
+
+        verify(jwtService, never()).generateAccessToken(user);
+
     }
 
 

@@ -29,6 +29,9 @@ public class EmailConfig {
         properties.put("mail.smtp.starttls.enable", true);
         properties.put("mail.smtp.starttls.required", true);
         properties.put("mail.smtp.ssl.trust", "smtp.gmail.com");
+        properties.put("mail.smtp.connectiontimeout", 10000);
+        properties.put("mail.smtp.timeout", 10000);
+        properties.put("mail.smtp.writetimeout", 10000);
 
         return javaMailSender;
     }

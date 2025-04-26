@@ -1,10 +1,7 @@
 package com.jobflow.user_service.handler;
 
 import com.jobflow.user_service.email.EmailService;
-import com.jobflow.user_service.exception.EmailServiceException;
-import com.jobflow.user_service.exception.TokenRevokedException;
-import com.jobflow.user_service.exception.UserAlreadyExistsException;
-import com.jobflow.user_service.exception.UserNotFoundException;
+import com.jobflow.user_service.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -50,6 +47,22 @@ public class GlobalHandler {
         ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseError);
+    }
+
+    @ExceptionHandler(VerificationCodeExpiredException.class)
+    public ResponseEntity<ResponseError> verificationCodeExpiredExcHandler(VerificationCodeExpiredException exc) {
+        LOGGER.error("[Verification Code Expired Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.GONE.value());
+
+        return ResponseEntity.status(HttpStatus.GONE).body(responseError);
+    }
+
+    @ExceptionHandler(InvalidVerificationCodeException.class)
+    public ResponseEntity<ResponseError> invalidVerificationCodeExcHandler(InvalidVerificationCodeException exc) {
+        LOGGER.error("[Invalid Verification Code Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

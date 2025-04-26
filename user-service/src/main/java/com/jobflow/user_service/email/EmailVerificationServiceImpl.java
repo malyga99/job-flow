@@ -3,6 +3,9 @@ package com.jobflow.user_service.email;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.exception.EmailServiceException;
+import com.jobflow.user_service.exception.InvalidVerificationCodeException;
+import com.jobflow.user_service.exception.VerificationCodeExpiredException;
+import com.jobflow.user_service.register.ConfirmCodeRequest;
 import com.jobflow.user_service.register.RegisterRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -47,6 +50,37 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         }
 
         emailService.sendCodeToEmail(email, code);
+    }
+
+    @Override
+    public RegisterRequest validateVerificationCode(ConfirmCodeRequest confirmCodeRequest) {
+        int code = confirmCodeRequest.getCode();
+        String email = confirmCodeRequest.getLogin();
+
+        String verifyKey = String.format(VERIFY_KEY, email);
+        String dataKey = String.format(DATA_KEY, email);
+
+        String codeFromRedis = redisTemplate.opsForValue().get(verifyKey);
+        String dataFromRedis = redisTemplate.opsForValue().get(dataKey);
+
+        if (codeFromRedis == null || dataFromRedis == null) {
+            throw new VerificationCodeExpiredException("Verification code expired for user with login: " + email);
+        }
+        if (code != Integer.parseInt(codeFromRedis)) {
+            throw new InvalidVerificationCodeException("Verification code: " + code + " invalid for user: " + email);
+        }
+
+        deleteVerificationData(email);
+        try {
+            return objectMapper.readValue(dataFromRedis, RegisterRequest.class);
+        } catch (JsonProcessingException e) {
+            throw new EmailServiceException("Failed to deserialize register request", e);
+        }
+    }
+
+    private void deleteVerificationData(String email) {
+        redisTemplate.delete(String.format(VERIFY_KEY, email));
+        redisTemplate.delete(String.format(DATA_KEY, email));
     }
 
     private int generateSixDigitCode() {
