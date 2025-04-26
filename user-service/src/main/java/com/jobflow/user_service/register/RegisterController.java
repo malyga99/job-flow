@@ -41,10 +41,6 @@ public class RegisterController {
 
                     @ApiResponse(responseCode = "409", description = "User with this login already exists",
                             content = @Content(mediaType = "application/json", schema =
-                            @Schema(implementation = ResponseError.class))),
-
-                    @ApiResponse(responseCode = "401", description = "Authentication exception",
-                            content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))
             }
     )

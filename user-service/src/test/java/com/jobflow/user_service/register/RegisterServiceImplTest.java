@@ -1,6 +1,7 @@
 package com.jobflow.user_service.register;
 
 import com.jobflow.user_service.email.EmailVerificationService;
+import com.jobflow.user_service.exception.UserAlreadyExistsException;
 import com.jobflow.user_service.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,16 @@ class RegisterServiceImplTest {
         assertEquals("encodedPassword", registerRequest.getPassword());
 
         verify(emailVerificationService, times(1)).sendVerificationCode(registerRequest);
+    }
+
+    @Test
+    public void register_userAlreadyExists_throwExc() {
+        when(userRepository.existsByLogin(registerRequest.getLogin().toLowerCase())).thenReturn(true);
+
+        var userAlreadyExistsException = assertThrows(UserAlreadyExistsException.class, () -> registerService.register(registerRequest));
+        assertEquals("User with login: " + registerRequest.getLogin().toLowerCase() + " already exists", userAlreadyExistsException.getMessage());
+
+        verify(emailVerificationService, never()).sendVerificationCode(registerRequest);
     }
 
 }

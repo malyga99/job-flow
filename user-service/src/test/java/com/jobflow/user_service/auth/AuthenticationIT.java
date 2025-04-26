@@ -1,6 +1,7 @@
 package com.jobflow.user_service.auth;
 
 import com.jobflow.user_service.BaseIT;
+import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.user.Role;
@@ -53,7 +54,7 @@ public class AuthenticationIT extends BaseIT {
 
     @Test
     public void auth_returnAuthResponse() {
-        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest, null);
+        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(authenticationRequest);
         ResponseEntity<AuthenticationResponse> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,
@@ -77,7 +78,7 @@ public class AuthenticationIT extends BaseIT {
     @Test
     public void auth_invalidData_returnBadRequest() {
         AuthenticationRequest invalidRequest = new AuthenticationRequest("", "");
-        HttpEntity<AuthenticationRequest> request = createRequest(invalidRequest, null);
+        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(invalidRequest);
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,
@@ -97,7 +98,7 @@ public class AuthenticationIT extends BaseIT {
     @Test
     public void auth_userNotFound_returnNotFound() {
         authenticationRequest.setLogin("incorrectLogin");
-        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest, null);
+        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(authenticationRequest);
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,
@@ -118,7 +119,7 @@ public class AuthenticationIT extends BaseIT {
     @Test
     public void auth_wrongPassword_returnUnauthorized() {
         authenticationRequest.setPassword("incorrectPassword");
-        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest, null);
+        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(authenticationRequest);
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,
@@ -144,7 +145,7 @@ public class AuthenticationIT extends BaseIT {
         headers.setBearerAuth(accessToken);
 
         LogoutRequest logoutRequest = new LogoutRequest(refreshToken);
-        HttpEntity<LogoutRequest> request = createRequest(logoutRequest, headers);
+        HttpEntity<LogoutRequest> request = TestUtil.createRequest(logoutRequest, headers);
 
         ResponseEntity<Void> response = restTemplate.exchange(
                 "/api/v1/auth/logout",
@@ -172,7 +173,7 @@ public class AuthenticationIT extends BaseIT {
         headers.setBearerAuth(accessToken);
 
         LogoutRequest logoutRequest = new LogoutRequest(refreshToken);
-        HttpEntity<LogoutRequest> request = createRequest(logoutRequest, headers);
+        HttpEntity<LogoutRequest> request = TestUtil.createRequest(logoutRequest, headers);
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth/logout",
@@ -198,7 +199,7 @@ public class AuthenticationIT extends BaseIT {
         headers.setBearerAuth(accessToken);
 
         LogoutRequest logoutRequest = new LogoutRequest(null);
-        HttpEntity<LogoutRequest> request = createRequest(logoutRequest, headers);
+        HttpEntity<LogoutRequest> request = TestUtil.createRequest(logoutRequest, headers);
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth/logout",
@@ -222,7 +223,7 @@ public class AuthenticationIT extends BaseIT {
         String refreshToken = authenticationResponse.getRefreshToken();
 
         LogoutRequest logoutRequest = new LogoutRequest(refreshToken);
-        HttpEntity<LogoutRequest> request = createRequest(logoutRequest, null);
+        HttpEntity<LogoutRequest> request = TestUtil.createRequest(logoutRequest);
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth/logout",
@@ -249,7 +250,7 @@ public class AuthenticationIT extends BaseIT {
         headers.setBearerAuth(accessToken);
 
         RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
-        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, headers);
+        HttpEntity<RefreshTokenRequest> request = TestUtil.createRequest(refreshTokenRequest, headers);
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/v1/auth/refresh",
@@ -279,7 +280,7 @@ public class AuthenticationIT extends BaseIT {
         revokeToken(refreshTokenId);
 
         RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
-        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, headers);
+        HttpEntity<RefreshTokenRequest> request = TestUtil.createRequest(refreshTokenRequest, headers);
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth/refresh",
@@ -306,7 +307,7 @@ public class AuthenticationIT extends BaseIT {
         headers.setBearerAuth(accessToken);
 
         RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
-        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, headers);
+        HttpEntity<RefreshTokenRequest> request = TestUtil.createRequest(refreshTokenRequest, headers);
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth/refresh",
@@ -332,7 +333,7 @@ public class AuthenticationIT extends BaseIT {
         headers.setBearerAuth(accessToken);
 
         RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(null);
-        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, headers);
+        HttpEntity<RefreshTokenRequest> request = TestUtil.createRequest(refreshTokenRequest, headers);
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth/refresh",
@@ -356,7 +357,7 @@ public class AuthenticationIT extends BaseIT {
         String refreshToken = authenticationResponse.getRefreshToken();
 
         RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
-        HttpEntity<RefreshTokenRequest> request = createRequest(refreshTokenRequest, null);
+        HttpEntity<RefreshTokenRequest> request = TestUtil.createRequest(refreshTokenRequest);
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth/refresh",
@@ -374,12 +375,8 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(error.getTime());
     }
 
-    private <T> HttpEntity<T> createRequest(T request, HttpHeaders headers) {
-        return new HttpEntity<>(request, headers);
-    }
-
     private AuthenticationResponse authenticateUser() {
-        HttpEntity<AuthenticationRequest> request = createRequest(authenticationRequest, null);
+        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(authenticationRequest);
         ResponseEntity<AuthenticationResponse> response = restTemplate.exchange(
                 "/api/v1/auth",
                 HttpMethod.POST,

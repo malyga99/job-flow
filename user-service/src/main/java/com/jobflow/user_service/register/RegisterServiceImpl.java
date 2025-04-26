@@ -29,6 +29,6 @@ public class RegisterServiceImpl implements RegisterService {
 
         registerRequest.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         emailVerificationService.sendVerificationCode(registerRequest);
-        LOGGER.debug("Successfully sent verification code to user with login: {}", registerRequest.getLogin());
+        LOGGER.debug("Successfully sent verification code to user with login: {} for registration", registerRequest.getLogin());
     }
 }
