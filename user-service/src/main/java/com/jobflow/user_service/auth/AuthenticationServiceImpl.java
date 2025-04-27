@@ -1,8 +1,10 @@
 package com.jobflow.user_service.auth;
 
 import com.jobflow.user_service.exception.TokenRevokedException;
+import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.user.User;
+import com.jobflow.user_service.user.UserRepository;
 import com.jobflow.user_service.user.UserService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final JwtService jwtService;
     private final RedisTemplate<String, String> redisTemplate;
     private final UserService userService;
+    private final UserRepository userRepository;
     private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationServiceImpl.class);
 
@@ -72,8 +75,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public String refreshToken(RefreshTokenRequest refreshTokenRequest) {
-        User currentUser = userService.getCurrentUser();
-        LOGGER.debug("Starting refresh token for user: {}", currentUser.getLogin());
+        LOGGER.debug("Starting refresh token process");
 
         String refreshToken = refreshTokenRequest.getRefreshToken();
         Claims claims = jwtService.extractClaims(refreshToken);
@@ -81,8 +83,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String tokenId = claims.getId();
         validateIsTokenRevoked(tokenId);
 
-        LOGGER.debug("Successfully refreshed token for user: {}", currentUser.getLogin());
-        return jwtService.generateAccessToken(currentUser);
+        String login = claims.getSubject();
+        User user = userRepository.findByLogin(login)
+                        .orElseThrow(() -> new UserNotFoundException("User with login: " + login + " not found"));
+
+        LOGGER.debug("Successfully refreshed token for user: {}", user.getLogin());
+        return jwtService.generateAccessToken(user);
     }
 
     private void validateIsTokenRevoked(String tokenId) {

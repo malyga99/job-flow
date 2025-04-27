@@ -2,6 +2,9 @@ package com.jobflow.user_service.register;
 
 import com.jobflow.user_service.email.EmailVerificationService;
 import com.jobflow.user_service.exception.UserAlreadyExistsException;
+import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.user.Role;
+import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -16,6 +19,7 @@ public class RegisterServiceImpl implements RegisterService {
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
     private static final Logger LOGGER = LoggerFactory.getLogger(RegisterServiceImpl.class);
 
     @Override
@@ -30,5 +34,25 @@ public class RegisterServiceImpl implements RegisterService {
         registerRequest.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         emailVerificationService.sendVerificationCode(registerRequest);
         LOGGER.debug("Successfully sent verification code to user with login: {} for registration", registerRequest.getLogin());
+    }
+
+    @Override
+    public RegisterResponse confirmCode(ConfirmCodeRequest confirmCodeRequest) {
+        LOGGER.debug("Starting confirm code process for user with login: {}", confirmCodeRequest.getLogin());
+        RegisterRequest registerRequest = emailVerificationService.validateVerificationCode(confirmCodeRequest);
+
+        User user = userRepository.save(User.builder()
+                .firstname(registerRequest.getFirstname())
+                .lastname(registerRequest.getLastname())
+                .login(registerRequest.getLogin())
+                .password(registerRequest.getPassword())
+                .role(Role.ROLE_USER)
+                .build());
+
+        LOGGER.debug("Successfully confirmed code for user with login: {}", confirmCodeRequest.getLogin());
+        return new RegisterResponse(
+                jwtService.generateAccessToken(user),
+                jwtService.generateRefreshToken(user)
+        );
     }
 }

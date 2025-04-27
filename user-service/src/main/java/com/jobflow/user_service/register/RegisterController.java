@@ -54,4 +54,31 @@ public class RegisterController {
         registerService.register(registerRequest);
         return ResponseEntity.ok().build();
     }
+
+    @Operation(
+            summary = "Code confirmation",
+            description = "Confirms the verification code which sent to the email address, registers a user and returns access/refresh JWT tokens",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Code confirmed successfully",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = RegisterResponse.class))),
+
+                    @ApiResponse(responseCode = "400", description = "Validation error or invalid verification code",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "410", description = "Code expired",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+            }
+    )
+    @PostMapping("/confirm")
+    public ResponseEntity<RegisterResponse> confirmCode(
+            @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Confirm code details", required = true
+            ) ConfirmCodeRequest confirmCodeRequest
+    ) {
+        LOGGER.info("[POST] Confirm code request received for login: {}", confirmCodeRequest.getLogin());
+        return ResponseEntity.ok(registerService.confirmCode(confirmCodeRequest));
+    }
 }

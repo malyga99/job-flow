@@ -3,7 +3,9 @@ package com.jobflow.user_service.register;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.exception.EmailServiceException;
+import com.jobflow.user_service.exception.InvalidVerificationCodeException;
 import com.jobflow.user_service.exception.UserAlreadyExistsException;
+import com.jobflow.user_service.exception.VerificationCodeExpiredException;
 import com.jobflow.user_service.handler.GlobalHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +36,13 @@ class RegisterControllerTest {
 
     private RegisterRequest registerRequest;
 
+    private ConfirmCodeRequest confirmCodeRequest;
+
+    private RegisterResponse registerResponse;
+
     private String registerRequestJson;
+
+    private String confirmCodeRequestJson;
 
     private final static ObjectMapper objectMapper = new ObjectMapper();
 
@@ -43,8 +51,11 @@ class RegisterControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(registerController)
                 .setControllerAdvice(new GlobalHandler())
                 .build();
+        registerResponse = new RegisterResponse("access.jwt.token", "refresh.jwt.token");
         registerRequest = new RegisterRequest("Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde");
         registerRequestJson = objectMapper.writeValueAsString(registerRequest);
+        confirmCodeRequest = new ConfirmCodeRequest("IvanIvanov@gmail.com", 111111);
+        confirmCodeRequestJson = objectMapper.writeValueAsString(confirmCodeRequest);
     }
 
     @Test
@@ -113,4 +124,69 @@ class RegisterControllerTest {
         verify(registerService, times(1)).register(registerRequest);
     }
 
+    @Test
+    public void confirmCode_returnRegisterResponse() throws Exception {
+        when(registerService.confirmCode(confirmCodeRequest)).thenReturn(registerResponse);
+
+        mockMvc.perform(post("/api/v1/register/confirm")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(confirmCodeRequestJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value(registerResponse.getAccessToken()))
+                .andExpect(jsonPath("$.refreshToken").value(registerResponse.getRefreshToken()));
+
+        verify(registerService, times(1)).confirmCode(confirmCodeRequest);
+    }
+
+    @Test
+    public void confirmCode_invalidData_returnBadRequest() throws Exception {
+        ConfirmCodeRequest invalidRequest = new ConfirmCodeRequest("", 0);
+        String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
+
+        mockMvc.perform(post("/api/v1/register/confirm")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
+
+        verifyNoInteractions(registerService);
+    }
+
+    @Test
+    public void confirmCode_invalidCode_returnBadRequest() throws Exception {
+        var invalidVerificationCodeException = new InvalidVerificationCodeException("Invalid code");
+        when(registerService.confirmCode(confirmCodeRequest)).thenThrow(invalidVerificationCodeException);
+
+        mockMvc.perform(post("/api/v1/register/confirm")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(confirmCodeRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(invalidVerificationCodeException.getMessage()))
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()))
+                .andExpect(jsonPath("$.time").exists());
+
+        verify(registerService, times(1)).confirmCode(confirmCodeRequest);
+    }
+
+    @Test
+    public void confirmCode_expiredCode_returnGone() throws Exception {
+        var verificationCodeExpiredException = new VerificationCodeExpiredException("Expired code");
+        when(registerService.confirmCode(confirmCodeRequest)).thenThrow(verificationCodeExpiredException);
+
+        mockMvc.perform(post("/api/v1/register/confirm")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(confirmCodeRequestJson))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.message").value(verificationCodeExpiredException.getMessage()))
+                .andExpect(jsonPath("$.status").value(HttpStatus.GONE.value()))
+                .andExpect(jsonPath("$.time").exists());
+
+        verify(registerService, times(1)).confirmCode(confirmCodeRequest);
+    }
 }
