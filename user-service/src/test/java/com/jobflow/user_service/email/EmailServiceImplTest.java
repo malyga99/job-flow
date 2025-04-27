@@ -15,6 +15,10 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class EmailServiceImplTest {
 
+    private static final String EMAIL_SENDER = "SenderUsername@gmail.com";
+    private static final String EMAIL_RECIPIENT = "IvanIvanov@gmail.com";
+    private static final int code = 111111;
+
     @Mock
     private JavaMailSender javaMailSender;
 
@@ -23,10 +27,6 @@ class EmailServiceImplTest {
 
     @InjectMocks
     private EmailServiceImpl emailService;
-
-    private static final String EMAIL_SENDER = "SenderUsername@gmail.com";
-    private static final String EMAIL_RECIPIENT = "IvanIvanov@gmail.com";
-    private static final int code = 111111;
 
     @Test
     public void sendCodeToEmail_successfullySendCodeWithCorrectlyDetails() {

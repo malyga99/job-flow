@@ -1,6 +1,5 @@
 package com.jobflow.user_service.register;
 
-import com.jobflow.user_service.auth.AuthenticationResponse;
 import com.jobflow.user_service.handler.ResponseError;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -52,6 +51,34 @@ public class RegisterController {
     ) {
         LOGGER.info("[POST] Register request received for login: {}", registerRequest.getLogin());
         registerService.register(registerRequest);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "Resend code",
+            description = "Resends a new verification code to the provided email address",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Code resent successfully",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = RegisterResponse.class))),
+
+                    @ApiResponse(responseCode = "400", description = "Validation error",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "410", description = "Code expired",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+            }
+    )
+    @PostMapping("/resend")
+    public ResponseEntity<Void> resendCode(
+            @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Resend code details", required = true
+            ) ResendCodeRequest resendCodeRequest
+    ) {
+        LOGGER.info("[POST] Resend code request received for login: {}", resendCodeRequest.getLogin());
+        registerService.resendCode(resendCodeRequest);
         return ResponseEntity.ok().build();
     }
 

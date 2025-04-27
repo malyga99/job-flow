@@ -26,6 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(MockitoExtension.class)
 class RegisterControllerTest {
 
+    private final static ObjectMapper objectMapper = new ObjectMapper();
+
     @Mock
     private RegisterService registerService;
 
@@ -38,13 +40,15 @@ class RegisterControllerTest {
 
     private ConfirmCodeRequest confirmCodeRequest;
 
+    private ResendCodeRequest resendCodeRequest;
+
     private RegisterResponse registerResponse;
 
     private String registerRequestJson;
 
     private String confirmCodeRequestJson;
 
-    private final static ObjectMapper objectMapper = new ObjectMapper();
+    private String resendCodeRequestJson;
 
     @BeforeEach
     public void setup() throws JsonProcessingException {
@@ -56,6 +60,8 @@ class RegisterControllerTest {
         registerRequestJson = objectMapper.writeValueAsString(registerRequest);
         confirmCodeRequest = new ConfirmCodeRequest("IvanIvanov@gmail.com", 111111);
         confirmCodeRequestJson = objectMapper.writeValueAsString(confirmCodeRequest);
+        resendCodeRequest = new ResendCodeRequest("IvanIvanov@gmail.com");
+        resendCodeRequestJson = objectMapper.writeValueAsString(resendCodeRequest);
     }
 
     @Test
@@ -122,6 +128,53 @@ class RegisterControllerTest {
 
 
         verify(registerService, times(1)).register(registerRequest);
+    }
+
+    @Test
+    public void resendCode_resendCodeSuccessfully() throws Exception {
+        doNothing().when(registerService).resendCode(resendCodeRequest);
+
+        mockMvc.perform(post("/api/v1/register/resend")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(resendCodeRequestJson))
+                .andExpect(status().isOk());
+
+        verify(registerService, times(1)).resendCode(resendCodeRequest);
+    }
+
+    @Test
+    public void resendCode_invalidData_returnBadRequest() throws Exception {
+        ResendCodeRequest invalidRequest = new ResendCodeRequest("");
+        String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
+
+        mockMvc.perform(post("/api/v1/register/resend")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
+
+        verifyNoInteractions(registerService);
+    }
+
+    @Test
+    public void resendCode_expiredCode_returnGone() throws Exception {
+        var verificationCodeExpiredException = new VerificationCodeExpiredException("Expired code");
+        doThrow(verificationCodeExpiredException).when(registerService).resendCode(resendCodeRequest);
+
+        mockMvc.perform(post("/api/v1/register/resend")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(resendCodeRequestJson))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.message").value(verificationCodeExpiredException.getMessage()))
+                .andExpect(jsonPath("$.status").value(HttpStatus.GONE.value()))
+                .andExpect(jsonPath("$.time").exists());
+
+        verify(registerService, times(1)).resendCode(resendCodeRequest);
     }
 
     @Test

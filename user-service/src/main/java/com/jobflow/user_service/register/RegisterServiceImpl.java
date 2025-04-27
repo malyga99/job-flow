@@ -15,17 +15,17 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class RegisterServiceImpl implements RegisterService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RegisterServiceImpl.class);
 
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private static final Logger LOGGER = LoggerFactory.getLogger(RegisterServiceImpl.class);
 
     @Override
     public void register(RegisterRequest registerRequest) {
         LOGGER.debug("Starting user registration with login: {}", registerRequest.getLogin());
-        registerRequest.setLogin(registerRequest.getLogin().toLowerCase());
+        registerRequest.setLogin(setLoginLowercase(registerRequest.getLogin()));
 
         if (userRepository.existsByLogin(registerRequest.getLogin())) {
             throw new UserAlreadyExistsException("User with login: " + registerRequest.getLogin() + " already exists");
@@ -39,6 +39,8 @@ public class RegisterServiceImpl implements RegisterService {
     @Override
     public RegisterResponse confirmCode(ConfirmCodeRequest confirmCodeRequest) {
         LOGGER.debug("Starting confirm code process for user with login: {}", confirmCodeRequest.getLogin());
+        confirmCodeRequest.setLogin(setLoginLowercase(confirmCodeRequest.getLogin()));
+
         RegisterRequest registerRequest = emailVerificationService.validateVerificationCode(confirmCodeRequest);
 
         User user = userRepository.save(User.builder()
@@ -54,5 +56,18 @@ public class RegisterServiceImpl implements RegisterService {
                 jwtService.generateAccessToken(user),
                 jwtService.generateRefreshToken(user)
         );
+    }
+
+    @Override
+    public void resendCode(ResendCodeRequest resendCodeRequest) {
+        LOGGER.debug("Starting resend code process for user with login: {}", resendCodeRequest.getLogin());
+        resendCodeRequest.setLogin(setLoginLowercase(resendCodeRequest.getLogin()));
+
+        emailVerificationService.resendCode(resendCodeRequest);
+        LOGGER.debug("Successfully resent code for user with login: {}", resendCodeRequest.getLogin());
+    }
+
+    private String setLoginLowercase(String login) {
+        return login.toLowerCase();
     }
 }
