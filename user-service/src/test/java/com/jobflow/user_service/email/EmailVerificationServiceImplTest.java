@@ -3,6 +3,9 @@ package com.jobflow.user_service.email;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.exception.EmailServiceException;
+import com.jobflow.user_service.exception.InvalidVerificationCodeException;
+import com.jobflow.user_service.exception.VerificationCodeExpiredException;
+import com.jobflow.user_service.register.ConfirmCodeRequest;
 import com.jobflow.user_service.register.RegisterRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,14 +41,19 @@ class EmailVerificationServiceImplTest {
 
     private RegisterRequest registerRequest;
 
+    private ConfirmCodeRequest confirmCodeRequest;
+
     private String registerRequestJson;
 
     private static final String LOGIN = "IvanIvanov@gmail.com";
+    private static final  String VERIFY_KEY = "email:verify:" + LOGIN;
+    private static final String DATA_KEY = "email:data:" + LOGIN;
 
     @BeforeEach
     public void setup() {
         registerRequest = new RegisterRequest("Ivan", "Ivanov", LOGIN, "abcde");
-        registerRequestJson = "{\"some\":\"json\"}";
+        registerRequestJson = "{\"register\":\"json\"}";
+        confirmCodeRequest = new ConfirmCodeRequest(LOGIN, 111111);
     }
 
     @Test
@@ -58,13 +66,13 @@ class EmailVerificationServiceImplTest {
 
         verify(emailService, times(1)).sendCodeToEmail(eq(LOGIN), anyInt());
         verify(valueOperations, times(1)).set(
-                eq("email:verify:" + LOGIN),
+                eq(VERIFY_KEY),
                 anyString(),
                 eq(5L),
                 eq(TimeUnit.MINUTES)
         );
         verify(valueOperations, times(1)).set(
-                eq("email:data:" + LOGIN),
+                eq(DATA_KEY),
                 eq(registerRequestJson),
                 eq(5L),
                 eq(TimeUnit.MINUTES)
@@ -73,12 +81,78 @@ class EmailVerificationServiceImplTest {
 
     @Test
     public void sendVerificationCode_jsonProcessingException_throwExc() throws JsonProcessingException {
-        when(objectMapper.writeValueAsString(registerRequest)).thenThrow( new JsonProcessingException("") {});
+        when(objectMapper.writeValueAsString(registerRequest)).thenThrow(new JsonProcessingException("") {});
 
         var emailServiceException = assertThrows(EmailServiceException.class, () -> emailVerificationService.sendVerificationCode(registerRequest));
         assertEquals("Failed to serialize register request", emailServiceException.getMessage());
 
         verifyNoInteractions(redisTemplate, valueOperations, emailService);
+    }
+
+    @Test
+    public void validateVerificationCode_returnRegisterRequest() throws JsonProcessingException {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
+        when(objectMapper.readValue(registerRequestJson, RegisterRequest.class)).thenReturn(registerRequest);
+
+        RegisterRequest result = emailVerificationService.validateVerificationCode(confirmCodeRequest);
+
+        assertNotNull(result);
+        assertEquals(registerRequest, result);
+
+        verify(redisTemplate, times(1)).delete(VERIFY_KEY);
+        verify(redisTemplate, times(1)).delete(DATA_KEY);
+        verify(objectMapper, times(1)).readValue(registerRequestJson, RegisterRequest.class);
+    }
+
+    @Test
+    public void validateVerificationCode_codeNotFound_throwExc() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(VERIFY_KEY)).thenReturn(null);
+        when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
+
+        var verificationCodeExpiredException = assertThrows(VerificationCodeExpiredException.class, () -> emailVerificationService.validateVerificationCode(confirmCodeRequest));
+        assertEquals("Verification code expired for user with login: " + LOGIN, verificationCodeExpiredException.getMessage());
+
+        verify(redisTemplate, never()).delete(anyString());
+    }
+
+    @Test
+    public void validateVerificationCode_dataNotFound_throwExc() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(DATA_KEY)).thenReturn(null);
+
+        var verificationCodeExpiredException = assertThrows(VerificationCodeExpiredException.class, () -> emailVerificationService.validateVerificationCode(confirmCodeRequest));
+        assertEquals("Verification code expired for user with login: " + LOGIN, verificationCodeExpiredException.getMessage());
+
+        verify(redisTemplate, never()).delete(anyString());
+    }
+
+    @Test
+    public void validateVerificationCode_invalidCode_throwExc() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(VERIFY_KEY)).thenReturn("333333");
+        when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
+
+        var verificationCodeExpiredException = assertThrows(InvalidVerificationCodeException.class, () -> emailVerificationService.validateVerificationCode(confirmCodeRequest));
+        assertEquals("Verification code: " + confirmCodeRequest.getCode() + " invalid for user: " + LOGIN, verificationCodeExpiredException.getMessage());
+
+        verify(redisTemplate, never()).delete(anyString());
+    }
+
+    @Test
+    public void validateVerificationCode_jsonProcessingException_throwExc() throws JsonProcessingException {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
+        when(objectMapper.readValue(registerRequestJson, RegisterRequest.class)).thenThrow(new JsonProcessingException("") {});
+
+        var emailServiceException = assertThrows(EmailServiceException.class, () -> emailVerificationService.validateVerificationCode(confirmCodeRequest));
+        assertEquals("Failed to deserialize register request", emailServiceException.getMessage());
+
+        verify(redisTemplate, never()).delete(anyString());
     }
 
 }

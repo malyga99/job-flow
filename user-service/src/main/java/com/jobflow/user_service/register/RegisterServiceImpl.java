@@ -38,6 +38,7 @@ public class RegisterServiceImpl implements RegisterService {
 
     @Override
     public RegisterResponse confirmCode(ConfirmCodeRequest confirmCodeRequest) {
+        LOGGER.debug("Starting confirm code process for user with login: {}", confirmCodeRequest.getLogin());
         RegisterRequest registerRequest = emailVerificationService.validateVerificationCode(confirmCodeRequest);
 
         User user = userRepository.save(User.builder()
@@ -48,6 +49,7 @@ public class RegisterServiceImpl implements RegisterService {
                 .role(Role.ROLE_USER)
                 .build());
 
+        LOGGER.debug("Successfully confirmed code for user with login: {}", confirmCodeRequest.getLogin());
         return new RegisterResponse(
                 jwtService.generateAccessToken(user),
                 jwtService.generateRefreshToken(user)

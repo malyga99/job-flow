@@ -2,6 +2,9 @@ package com.jobflow.user_service.register;
 
 import com.jobflow.user_service.email.EmailVerificationService;
 import com.jobflow.user_service.exception.UserAlreadyExistsException;
+import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.user.Role;
+import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,14 +29,20 @@ class RegisterServiceImplTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private JwtService jwtService;
+
     @InjectMocks
     private RegisterServiceImpl registerService;
 
     private RegisterRequest registerRequest;
 
+    private ConfirmCodeRequest confirmCodeRequest;
+
     @BeforeEach
     public void setup() {
         registerRequest = new RegisterRequest("Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde");
+        confirmCodeRequest = new ConfirmCodeRequest("IvanIvanov@gmail.com", 111111);
     }
 
     @Test
@@ -58,6 +67,33 @@ class RegisterServiceImplTest {
         assertEquals("User with login: " + registerRequest.getLogin().toLowerCase() + " already exists", userAlreadyExistsException.getMessage());
 
         verify(emailVerificationService, never()).sendVerificationCode(registerRequest);
+    }
+
+    @Test
+    public void confirmCode_returnRequestResponse() {
+        User savedUser = new User(1L, "Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde", Role.ROLE_USER);
+        when(emailVerificationService.validateVerificationCode(confirmCodeRequest)).thenReturn(registerRequest);
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(jwtService.generateAccessToken(savedUser)).thenReturn("access.jwt.token");
+        when(jwtService.generateRefreshToken(savedUser)).thenReturn("refresh.jwt.token");
+
+        RegisterResponse result = registerService.confirmCode(confirmCodeRequest);
+
+        assertNotNull(result);
+        assertEquals("access.jwt.token", result.getAccessToken());
+        assertEquals("refresh.jwt.token", result.getRefreshToken());
+
+        verify(emailVerificationService, times(1)).validateVerificationCode(confirmCodeRequest);
+        verify(userRepository, times(1)).save(
+                new User(
+                        null,
+                        registerRequest.getFirstname(),
+                        registerRequest.getLastname(),
+                        registerRequest.getLogin(),
+                        registerRequest.getPassword(),
+                        Role.ROLE_USER
+                )
+        );
     }
 
 }

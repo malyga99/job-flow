@@ -25,6 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class AuthenticationIT extends BaseIT {
 
+    private static final String LOGIN = "ivanivanov@gmail.com";
+    private static final String PASSWORD = "abcde";
+    private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
+
     @Autowired
     private TestRestTemplate restTemplate;
 
@@ -41,10 +45,6 @@ public class AuthenticationIT extends BaseIT {
     private RedisTemplate<String, String> redisTemplate;
 
     private AuthenticationRequest authenticationRequest;
-
-    private static final String LOGIN = "ivanivanov@gmail.com";
-    private static final String PASSWORD = "abcde";
-    private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
 
     @BeforeEach
     public void setup() {

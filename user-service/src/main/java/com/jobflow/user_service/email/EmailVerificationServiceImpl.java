@@ -20,14 +20,14 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class EmailVerificationServiceImpl implements EmailVerificationService {
 
-    private final EmailService emailService;
-    private final RedisTemplate<String, String> redisTemplate;
-    private final ObjectMapper objectMapper;
-
     private static final String VERIFY_KEY = "email:verify:%s";
     private static final String DATA_KEY = "email:data:%s";
     private static final long TTL_MINUTES = 5L;
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailVerificationServiceImpl.class);
+
+    private final EmailService emailService;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void sendVerificationCode(RegisterRequest registerRequest) {
@@ -54,6 +54,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
     @Override
     public RegisterRequest validateVerificationCode(ConfirmCodeRequest confirmCodeRequest) {
+        LOGGER.debug("Starting verification code validation for user with login: {}", confirmCodeRequest.getLogin());
         int code = confirmCodeRequest.getCode();
         String email = confirmCodeRequest.getLogin();
 
@@ -70,9 +71,12 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             throw new InvalidVerificationCodeException("Verification code: " + code + " invalid for user: " + email);
         }
 
-        deleteVerificationData(email);
         try {
-            return objectMapper.readValue(dataFromRedis, RegisterRequest.class);
+            RegisterRequest registerRequest = objectMapper.readValue(dataFromRedis, RegisterRequest.class);
+            LOGGER.debug("Successfully validated verification code for user with login: {}", confirmCodeRequest.getLogin());
+
+            deleteVerificationData(email);
+            return registerRequest;
         } catch (JsonProcessingException e) {
             throw new EmailServiceException("Failed to deserialize register request", e);
         }
