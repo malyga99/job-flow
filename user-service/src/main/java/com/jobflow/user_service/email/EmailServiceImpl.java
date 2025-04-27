@@ -10,9 +10,6 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
-
-    private final JavaMailSender javaMailSender;
-    private final EmailProperties emailProperties;
     private static final String LETTER_SUBJECT = "Registration confirmation code";
     private static final String LETTER_TEXT = """
         Hi!
@@ -24,6 +21,9 @@ public class EmailServiceImpl implements EmailService {
         JobFlow team
         """;
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailServiceImpl.class);
+
+    private final JavaMailSender javaMailSender;
+    private final EmailProperties emailProperties;
 
     @Override
     public void sendCodeToEmail(String email, int code) {

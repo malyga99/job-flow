@@ -7,6 +7,7 @@ import com.jobflow.user_service.exception.InvalidVerificationCodeException;
 import com.jobflow.user_service.exception.VerificationCodeExpiredException;
 import com.jobflow.user_service.register.ConfirmCodeRequest;
 import com.jobflow.user_service.register.RegisterRequest;
+import com.jobflow.user_service.register.ResendCodeRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,7 +16,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -23,6 +23,10 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class EmailVerificationServiceImplTest {
+
+    private static final String LOGIN = "IvanIvanov@gmail.com";
+    private static final  String VERIFY_KEY = "email:verify:" + LOGIN;
+    private static final String DATA_KEY = "email:data:" + LOGIN;
 
     @Mock
     private EmailService emailService;
@@ -43,17 +47,16 @@ class EmailVerificationServiceImplTest {
 
     private ConfirmCodeRequest confirmCodeRequest;
 
-    private String registerRequestJson;
+    private ResendCodeRequest resendCodeRequest;
 
-    private static final String LOGIN = "IvanIvanov@gmail.com";
-    private static final  String VERIFY_KEY = "email:verify:" + LOGIN;
-    private static final String DATA_KEY = "email:data:" + LOGIN;
+    private String registerRequestJson;
 
     @BeforeEach
     public void setup() {
         registerRequest = new RegisterRequest("Ivan", "Ivanov", LOGIN, "abcde");
         registerRequestJson = "{\"register\":\"json\"}";
         confirmCodeRequest = new ConfirmCodeRequest(LOGIN, 111111);
+        resendCodeRequest = new ResendCodeRequest(LOGIN);
     }
 
     @Test
@@ -153,6 +156,53 @@ class EmailVerificationServiceImplTest {
         assertEquals("Failed to deserialize register request", emailServiceException.getMessage());
 
         verify(redisTemplate, never()).delete(anyString());
+    }
+
+    @Test
+    public void resendCode_resendNewCode() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
+
+        emailVerificationService.resendCode(resendCodeRequest);
+
+        verify(emailService, times(1)).sendCodeToEmail(eq(LOGIN), anyInt());
+        verify(valueOperations, times(1)).set(
+                eq(VERIFY_KEY),
+                anyString(),
+                eq(5L),
+                eq(TimeUnit.MINUTES)
+        );
+        verify(valueOperations, times(1)).set(
+                eq(DATA_KEY),
+                eq(registerRequestJson),
+                eq(5L),
+                eq(TimeUnit.MINUTES)
+        );
+    }
+
+    @Test
+    public void resendCode_codeNotFound_throwExc() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(VERIFY_KEY)).thenReturn(null);
+        when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
+
+        var verificationCodeExpiredException = assertThrows(VerificationCodeExpiredException.class, () -> emailVerificationService.resendCode(resendCodeRequest));
+        assertEquals("Verification code expired for user with login: " + LOGIN, verificationCodeExpiredException.getMessage());
+
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    public void resendCode_dataNotFound_throwExc() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(DATA_KEY)).thenReturn(null);
+
+        var verificationCodeExpiredException = assertThrows(VerificationCodeExpiredException.class, () -> emailVerificationService.resendCode(resendCodeRequest));
+        assertEquals("Verification code expired for user with login: " + LOGIN, verificationCodeExpiredException.getMessage());
+
+        verifyNoInteractions(emailService);
     }
 
 }

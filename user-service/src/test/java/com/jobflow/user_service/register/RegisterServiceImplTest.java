@@ -39,10 +39,13 @@ class RegisterServiceImplTest {
 
     private ConfirmCodeRequest confirmCodeRequest;
 
+    private ResendCodeRequest resendCodeRequest;
+
     @BeforeEach
     public void setup() {
         registerRequest = new RegisterRequest("Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde");
         confirmCodeRequest = new ConfirmCodeRequest("IvanIvanov@gmail.com", 111111);
+        resendCodeRequest = new ResendCodeRequest("IvanIvanov@gmail.com");
     }
 
     @Test
@@ -94,6 +97,15 @@ class RegisterServiceImplTest {
                         Role.ROLE_USER
                 )
         );
+    }
+
+    @Test
+    public void resendCode_successfullyResendCode() {
+        doNothing().when(emailVerificationService).resendCode(resendCodeRequest);
+
+        registerService.resendCode(resendCodeRequest);
+
+        verify(emailVerificationService, times(1)).resendCode(resendCodeRequest);
     }
 
 }

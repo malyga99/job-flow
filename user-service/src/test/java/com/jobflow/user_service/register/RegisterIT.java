@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.BaseIT;
 import com.jobflow.user_service.TestUtil;
-import com.jobflow.user_service.auth.AuthenticationRequest;
 import com.jobflow.user_service.email.EmailService;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.jwt.JwtService;
@@ -60,6 +59,8 @@ public class RegisterIT extends BaseIT {
 
     private ConfirmCodeRequest confirmCodeRequest;
 
+    private ResendCodeRequest resendCodeRequest;
+
     private String registerRequestJson;
 
     @BeforeEach
@@ -67,6 +68,7 @@ public class RegisterIT extends BaseIT {
         registerRequest = new RegisterRequest("Ivan", "Ivanov", LOGIN, "abcde");
         registerRequestJson = objectMapper.writeValueAsString(registerRequest);
         confirmCodeRequest = new ConfirmCodeRequest(LOGIN, Integer.parseInt(CODE));
+        resendCodeRequest = new ResendCodeRequest(LOGIN);
         cleanDb();
     }
 
@@ -241,7 +243,71 @@ public class RegisterIT extends BaseIT {
         assertNotNull(error);
         assertNotNull(error.getTime());
         assertEquals(HttpStatus.GONE.value(), error.getStatus());
+    }
 
+    @Test
+    public void resendCode_successfullyResendNewCode() {
+        saveDataInRedis(registerRequest.getLogin(), "111111", registerRequestJson);
+
+        HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(resendCodeRequest);
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/register/resend",
+                HttpMethod.POST,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        String redisCodeJson = redisTemplate.opsForValue().get(String.format(VERIFY_KEY, registerRequest.getLogin()));
+        String redisDataJson = redisTemplate.opsForValue().get(String.format(DATA_KEY, registerRequest.getLogin()));
+        assertNotNull(redisCodeJson);
+        assertNotNull(redisDataJson);
+
+        int code = Integer.parseInt(redisCodeJson);
+        assertTrue(code != 111111);
+        assertTrue(code >= 100_000 && code <= 999_999, "Verification code must be 6 digits");
+
+        verify(emailService, times(1)).sendCodeToEmail(eq(registerRequest.getLogin()), anyInt());
+    }
+
+    @Test
+    public void resendCode_invalidData_returnBadRequest() {
+        ResendCodeRequest invalidRequest = new ResendCodeRequest("");
+        HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(invalidRequest);
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/register/resend",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertNotNull(error.getTime());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
+    }
+
+    @Test
+    public void resendCode_codeExpired_returnGone() {
+        HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(resendCodeRequest);
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/register/resend",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.GONE, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertEquals("Verification code expired for user with login: " + LOGIN, error.getMessage());
+        assertNotNull(error);
+        assertNotNull(error.getTime());
+        assertEquals(HttpStatus.GONE.value(), error.getStatus());
     }
 
     private void saveDataInRedis(String login, String code, String registerRequest) {
