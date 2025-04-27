@@ -105,7 +105,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Dockerfile
+          context: ./user-service
+          file: ./user-service/Dockerfile
           push: true
           tags: malyga99/user-service:latest
