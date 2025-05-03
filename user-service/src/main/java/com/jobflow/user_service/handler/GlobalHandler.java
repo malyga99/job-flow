@@ -49,6 +49,14 @@ public class GlobalHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseError);
     }
 
+    @ExceptionHandler(FileServiceException.class)
+    public ResponseEntity<ResponseError> fileServiceExcHandler(FileServiceException exc) {
+        LOGGER.error("[File Service Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseError);
+    }
+
     @ExceptionHandler(VerificationCodeExpiredException.class)
     public ResponseEntity<ResponseError> verificationCodeExpiredExcHandler(VerificationCodeExpiredException exc) {
         LOGGER.error("[Verification Code Expired Exception]: {}", exc.getMessage());

@@ -1,5 +1,6 @@
 package com.jobflow.user_service.jwt;
 
+import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import jakarta.servlet.FilterChain;
@@ -47,12 +48,11 @@ class JwtAuthenticationFilterTest {
     private JwtAuthenticationFilter authenticationFilter;
 
     private static final String JWT_TOKEN = "my.jwt.token";
-    private static final String LOGIN = "IvanIvanov@gmail.com";
 
     @BeforeEach
     public void setup() {
         SecurityContextHolder.clearContext();
-        userDetails = new User(1L, "Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde", Role.ROLE_USER);
+        userDetails = TestUtil.createUser();
     }
 
     @Test
@@ -92,7 +92,7 @@ class JwtAuthenticationFilterTest {
     @Test
     public void doFilterInternal_userAlreadyAuthenticated_skipFilter() throws ServletException, IOException {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + JWT_TOKEN);
-        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(LOGIN);
+        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(TestUtil.LOGIN);
         Authentication authentication = mock(Authentication.class);
         SecurityContext securityContext = mock(SecurityContext.class);
         SecurityContextHolder.setContext(securityContext);
@@ -108,8 +108,8 @@ class JwtAuthenticationFilterTest {
     @Test
     public void doFilterInternal_tokenNotValid_skipFilter() throws ServletException, IOException {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + JWT_TOKEN);
-        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(LOGIN);
-        when(userDetailsService.loadUserByUsername(LOGIN)).thenReturn(userDetails);
+        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(TestUtil.LOGIN);
+        when(userDetailsService.loadUserByUsername(TestUtil.LOGIN)).thenReturn(userDetails);
         when(jwtService.isValid(userDetails, JWT_TOKEN)).thenReturn(false);
 
         authenticationFilter.doFilterInternal(request, response, filterChain);
@@ -121,14 +121,14 @@ class JwtAuthenticationFilterTest {
     @Test
     public void doFilterInternal_tokenIsValid_setAuthentication() throws ServletException, IOException {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + JWT_TOKEN);
-        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(LOGIN);
-        when(userDetailsService.loadUserByUsername(LOGIN)).thenReturn(userDetails);
+        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(TestUtil.LOGIN);
+        when(userDetailsService.loadUserByUsername(TestUtil.LOGIN)).thenReturn(userDetails);
         when(jwtService.isValid(userDetails, JWT_TOKEN)).thenReturn(true);
 
         authenticationFilter.doFilterInternal(request, response, filterChain);
 
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-        assertEquals(SecurityContextHolder.getContext().getAuthentication().getName(), LOGIN);
+        assertEquals(SecurityContextHolder.getContext().getAuthentication().getName(), TestUtil.LOGIN);
         verify(filterChain, times(1)).doFilter(request, response);
     }
 

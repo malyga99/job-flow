@@ -1,5 +1,6 @@
 package com.jobflow.user_service.jwt;
 
+import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import io.jsonwebtoken.Claims;
@@ -32,7 +33,7 @@ class JwtServiceImplTest {
 
     @BeforeEach
     public void setup() {
-        userDetails = new User(1L, "Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde", Role.ROLE_USER);
+        userDetails = TestUtil.createUser();
         jwtService = new JwtServiceImpl(
                 SECRET_KEY,
                 300000L,

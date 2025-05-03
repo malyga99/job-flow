@@ -25,10 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class AuthenticationIT extends BaseIT {
 
-    private static final String LOGIN = "ivanivanov@gmail.com";
-    private static final String PASSWORD = "abcde";
-    private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
-
     @Autowired
     private TestRestTemplate restTemplate;
 
@@ -49,7 +45,7 @@ public class AuthenticationIT extends BaseIT {
     @BeforeEach
     public void setup() {
         initDb();
-        authenticationRequest = new AuthenticationRequest(LOGIN, PASSWORD);
+        authenticationRequest = TestUtil.createAuthRequest();
     }
 
     @Test
@@ -71,8 +67,8 @@ public class AuthenticationIT extends BaseIT {
 
         String loginAccessToken = jwtService.extractLogin(responseBody.getAccessToken());
         String loginRefreshToken = jwtService.extractLogin(responseBody.getRefreshToken());
-        assertEquals(LOGIN, loginAccessToken);
-        assertEquals(LOGIN, loginRefreshToken);
+        assertEquals(TestUtil.LOGIN, loginAccessToken);
+        assertEquals(TestUtil.LOGIN, loginRefreshToken);
     }
 
     @Test
@@ -157,7 +153,7 @@ public class AuthenticationIT extends BaseIT {
         assertEquals(HttpStatus.OK, response.getStatusCode());
 
         String tokenId = jwtService.extractClaims(refreshToken).getId();
-        String key = String.format(BLACKLIST_KEY, tokenId);
+        String key = String.format("blacklist:refresh:%s", tokenId);
         String value = redisTemplate.opsForValue().get(key);
 
         assertNotNull(value);
@@ -262,7 +258,7 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(refreshedToken);
 
         String refreshedTokenLogin = jwtService.extractLogin(refreshedToken);
-        assertEquals(LOGIN, refreshedTokenLogin);
+        assertEquals(TestUtil.LOGIN, refreshedTokenLogin);
     }
 
     @Test
@@ -351,7 +347,7 @@ public class AuthenticationIT extends BaseIT {
 
     private String generateExpiredRefreshToken() {
         return Jwts.builder()
-                .setSubject(LOGIN)
+                .setSubject(TestUtil.LOGIN)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() - 1000L))
                 .signWith(jwtService.getSecretKey(), SignatureAlgorithm.HS256)
@@ -368,7 +364,8 @@ public class AuthenticationIT extends BaseIT {
     private void initDb() {
         userRepository.deleteAll();
 
-        User user = new User(null, "Ivan", "Ivanov", LOGIN, passwordEncoder.encode(PASSWORD), Role.ROLE_USER);
+        User user = TestUtil.createUser();
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
     }
 }

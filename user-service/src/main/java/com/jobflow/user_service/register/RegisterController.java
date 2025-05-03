@@ -2,6 +2,7 @@ package com.jobflow.user_service.register;
 
 import com.jobflow.user_service.handler.ResponseError;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,11 +11,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/register")
@@ -43,14 +43,13 @@ public class RegisterController {
                             @Schema(implementation = ResponseError.class)))
             }
     )
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> register(
-            @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Registration details", required = true
-            ) RegisterRequest registerRequest
+            @RequestPart(value = "user") @Valid @Parameter(description = "User registration details", required = true) RegisterRequest registerRequest,
+            @RequestPart(value = "avatar", required = false) @Parameter(description = "User avatar", required = false) MultipartFile avatar
     ) {
         LOGGER.info("[POST] Register request received for login: {}", registerRequest.getLogin());
-        registerService.register(registerRequest);
+        registerService.register(registerRequest, avatar);
         return ResponseEntity.ok().build();
     }
 

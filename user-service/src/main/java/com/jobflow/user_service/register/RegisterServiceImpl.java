@@ -1,6 +1,7 @@
 package com.jobflow.user_service.register;
 
 import com.jobflow.user_service.email.EmailVerificationService;
+import com.jobflow.user_service.exception.FileServiceException;
 import com.jobflow.user_service.exception.UserAlreadyExistsException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.user.Role;
@@ -11,6 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +27,7 @@ public class RegisterServiceImpl implements RegisterService {
     private final JwtService jwtService;
 
     @Override
-    public void register(RegisterRequest registerRequest) {
+    public void register(RegisterRequest registerRequest, MultipartFile avatar) {
         LOGGER.debug("Starting user registration with login: {}", registerRequest.getLogin());
         registerRequest.setLogin(setLoginLowercase(registerRequest.getLogin()));
 
@@ -32,8 +36,24 @@ public class RegisterServiceImpl implements RegisterService {
         }
 
         registerRequest.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        registerRequest.setAvatar(getAvatarBytes(avatar));
+
         emailVerificationService.sendVerificationCode(registerRequest);
         LOGGER.debug("Successfully sent verification code to user with login: {} for registration", registerRequest.getLogin());
+    }
+
+    private byte[] getAvatarBytes(MultipartFile avatar) {
+        byte[] avatarBytes = null;
+
+        if (avatar != null && !avatar.isEmpty()) {
+            try {
+                avatarBytes = avatar.getBytes();
+            } catch (IOException e) {
+                throw new FileServiceException("Failed to get bytes from avatar", e);
+            }
+        }
+
+        return avatarBytes;
     }
 
     @Override
@@ -49,6 +69,7 @@ public class RegisterServiceImpl implements RegisterService {
                 .login(registerRequest.getLogin())
                 .password(registerRequest.getPassword())
                 .role(Role.ROLE_USER)
+                .avatar(registerRequest.getAvatar())
                 .build());
 
         LOGGER.debug("Successfully confirmed code for user with login: {}", confirmCodeRequest.getLogin());

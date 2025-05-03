@@ -1,5 +1,6 @@
 package com.jobflow.user_service.email;
 
+import com.jobflow.user_service.TestUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -17,7 +18,7 @@ class EmailServiceImplTest {
 
     private static final String EMAIL_SENDER = "SenderUsername@gmail.com";
     private static final String EMAIL_RECIPIENT = "IvanIvanov@gmail.com";
-    private static final int code = 111111;
+    private static final int code = TestUtil.CODE;
 
     @Mock
     private JavaMailSender javaMailSender;
