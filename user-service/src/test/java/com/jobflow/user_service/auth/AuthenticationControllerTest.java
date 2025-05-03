@@ -2,6 +2,7 @@ package com.jobflow.user_service.auth;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.exception.TokenRevokedException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.handler.GlobalHandler;
@@ -26,6 +27,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(MockitoExtension.class)
 class AuthenticationControllerTest {
 
+    private final static ObjectMapper objectMapper = new ObjectMapper();
+
     @Mock
     private AuthenticationService authenticationService;
 
@@ -48,22 +51,21 @@ class AuthenticationControllerTest {
 
     private String refreshTokenRequestJson;
 
-    private final static ObjectMapper objectMapper = new ObjectMapper();
-    private static final String REFRESH_TOKEN = "refresh.jwt.token";
-    private static final String ACCESS_TOKEN = "access.jwt.token";
 
     @BeforeEach
     public void setup() throws JsonProcessingException {
         mockMvc = MockMvcBuilders.standaloneSetup(authenticationController)
                 .setControllerAdvice(new GlobalHandler())
                 .build();
-        authenticationRequest = new AuthenticationRequest("IvanIvanov@gmail.com", "abcde");
-        authenticationResponse = new AuthenticationResponse(ACCESS_TOKEN, REFRESH_TOKEN);
+        authenticationRequest = TestUtil.createAuthRequest();
         authenticationRequestJson = objectMapper.writeValueAsString(authenticationRequest);
-        logoutRequest = new LogoutRequest(REFRESH_TOKEN);
-        refreshTokenRequest = new RefreshTokenRequest(REFRESH_TOKEN);
-        refreshTokenRequestJson = objectMapper.writeValueAsString(refreshTokenRequest);
+        authenticationResponse = new AuthenticationResponse(TestUtil.ACCESS_TOKEN, TestUtil.REFRESH_TOKEN);
+
+        logoutRequest = TestUtil.createLogoutRequest();
         logoutRequestJson = objectMapper.writeValueAsString(logoutRequest);
+
+        refreshTokenRequest = TestUtil.createRefreshRequest();
+        refreshTokenRequestJson = objectMapper.writeValueAsString(refreshTokenRequest);
     }
 
     @Test
@@ -147,14 +149,14 @@ class AuthenticationControllerTest {
 
     @Test
     public void refresh_successfullyRefreshToken() throws Exception {
-        when(authenticationService.refreshToken(refreshTokenRequest)).thenReturn(ACCESS_TOKEN);
+        when(authenticationService.refreshToken(refreshTokenRequest)).thenReturn(TestUtil.ACCESS_TOKEN);
 
         mockMvc.perform(post("/api/v1/auth/refresh")
                         .contentType(APPLICATION_JSON)
                         .accept(APPLICATION_JSON)
                         .content(refreshTokenRequestJson))
                 .andExpect(status().isOk())
-                .andExpect(content().string(ACCESS_TOKEN));
+                .andExpect(content().string(TestUtil.ACCESS_TOKEN));
 
         verify(authenticationService, times(1)).refreshToken(refreshTokenRequest);
     }

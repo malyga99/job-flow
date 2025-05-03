@@ -36,6 +36,9 @@ public class User implements UserDetails {
     @Column(name = "password", length = 100)
     private String password;
 
+    @Column(name = "avatar", columnDefinition = "bytea")
+    private byte[] avatar;
+
     @Enumerated(value = STRING)
     @Column(name = "role", nullable = false)
     private Role role;

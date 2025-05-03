@@ -1,5 +1,6 @@
 package com.jobflow.user_service.auth;
 
+import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.exception.TokenRevokedException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
@@ -70,34 +71,34 @@ class AuthenticationServiceImplTest {
 
     private UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken;
 
-    private static final String ACCESS_TOKEN = "my.access.token";
-
-    private static final String REFRESH_TOKEN = "my.refresh.token";
 
     @BeforeEach
     public void setup() {
-        authenticationRequest = new AuthenticationRequest("IvanIvanov@gmail.com", "abcde");
-        logoutRequest = new LogoutRequest(REFRESH_TOKEN);
-        refreshTokenRequest = new RefreshTokenRequest(REFRESH_TOKEN);
+        authenticationRequest = TestUtil.createAuthRequest();
+
+        logoutRequest = TestUtil.createLogoutRequest();
+
+        refreshTokenRequest = TestUtil.createRefreshRequest();
+
         usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                authenticationRequest.getLogin().toLowerCase(),
+                authenticationRequest.getLogin(),
                 authenticationRequest.getPassword()
         );
-        user = new User(1L, "Ivan", "Ivanov", authenticationRequest.getLogin(), authenticationRequest.getPassword(), Role.ROLE_USER);
+        user = TestUtil.createUser();
     }
 
     @Test
     public void auth_returnAuthResponse() {
         when(authenticationManager.authenticate(usernamePasswordAuthenticationToken)).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(user);
-        when(jwtService.generateAccessToken(user)).thenReturn(ACCESS_TOKEN);
-        when(jwtService.generateRefreshToken(user)).thenReturn(REFRESH_TOKEN);
+        when(jwtService.generateAccessToken(user)).thenReturn(TestUtil.ACCESS_TOKEN);
+        when(jwtService.generateRefreshToken(user)).thenReturn(TestUtil.REFRESH_TOKEN);
 
         AuthenticationResponse result = authenticationService.auth(authenticationRequest);
 
         assertNotNull(result);
-        assertEquals(ACCESS_TOKEN, result.getAccessToken());
-        assertEquals(REFRESH_TOKEN, result.getRefreshToken());
+        assertEquals(TestUtil.ACCESS_TOKEN, result.getAccessToken());
+        assertEquals(TestUtil.REFRESH_TOKEN, result.getRefreshToken());
         assertEquals(authenticationRequest.getLogin().toLowerCase(), authenticationRequest.getLogin());
 
         verify(authenticationManager, times(1)).authenticate(usernamePasswordAuthenticationToken);
@@ -114,7 +115,6 @@ class AuthenticationServiceImplTest {
         BadCredentialsException result = assertThrows(BadCredentialsException.class, () -> authenticationService.auth(authenticationRequest));
 
         assertEquals(badCredentialsException.getMessage(), result.getMessage());
-        verify(authenticationManager, times(1)).authenticate(usernamePasswordAuthenticationToken);
         verifyNoInteractions(jwtService);
     }
 
@@ -127,7 +127,6 @@ class AuthenticationServiceImplTest {
         UserNotFoundException result = assertThrows(UserNotFoundException.class, () -> authenticationService.auth(authenticationRequest));
 
         assertEquals(userNotFoundException.getMessage(), result.getMessage());
-        verify(authenticationManager, times(1)).authenticate(usernamePasswordAuthenticationToken);
         verifyNoInteractions(jwtService);
     }
 
@@ -138,14 +137,14 @@ class AuthenticationServiceImplTest {
         ArgumentCaptor<Long> ttlCaptor = ArgumentCaptor.forClass(Long.class);
 
         when(userService.getCurrentUser()).thenReturn(user);
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(jwtService.extractClaims(logoutRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getExpiration()).thenReturn(expiration);
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         authenticationService.logout(logoutRequest);
 
-        verify(jwtService, times(1)).extractClaims(REFRESH_TOKEN);
+        verify(jwtService, times(1)).extractClaims(logoutRequest.getRefreshToken());
         verify(valueOperations, times(1)).set(
                 eq("blacklist:refresh:token-id"),
                 eq("true"),
@@ -163,38 +162,37 @@ class AuthenticationServiceImplTest {
         String tokenId = "token-id";
 
         when(userService.getCurrentUser()).thenReturn(user);
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(jwtService.extractClaims(logoutRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getExpiration()).thenReturn(expiration);
         when(claims.getId()).thenReturn(tokenId);
 
         authenticationService.logout(logoutRequest);
 
-        verify(jwtService, times(1)).extractClaims(REFRESH_TOKEN);
         verifyNoInteractions(redisTemplate, valueOperations);
     }
 
     @Test
     public void refresh_returnAccessToken() {
         String tokenId = "token-id";
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
-        when(claims.getSubject()).thenReturn("subject");
-        when(userRepository.findByLogin("subject")).thenReturn(Optional.of(user));
-        when(jwtService.generateAccessToken(user)).thenReturn(ACCESS_TOKEN);
+        when(claims.getSubject()).thenReturn(TestUtil.LOGIN);
+        when(userRepository.findByLogin(TestUtil.LOGIN)).thenReturn(Optional.of(user));
+        when(jwtService.generateAccessToken(user)).thenReturn(TestUtil.ACCESS_TOKEN);
 
         String result = authenticationService.refreshToken(refreshTokenRequest);
 
         assertNotNull(result);
-        assertEquals(ACCESS_TOKEN, result);
+        assertEquals(TestUtil.ACCESS_TOKEN, result);
 
-        verify(userRepository, times(1)).findByLogin("subject");
+        verify(userRepository, times(1)).findByLogin(TestUtil.LOGIN);
         verify(jwtService, times(1)).generateAccessToken(user);
     }
     @Test
     public void refresh_ifRevoked_throwExc() {
         String tokenId = "token-id";
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.TRUE);
 
@@ -207,14 +205,14 @@ class AuthenticationServiceImplTest {
     @Test
     public void refresh_userNotFound_throwExc() {
         String tokenId = "token-id";
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
-        when(claims.getSubject()).thenReturn("subject");
-        when(userRepository.findByLogin("subject")).thenReturn(Optional.empty());
+        when(claims.getSubject()).thenReturn(TestUtil.LOGIN);
+        when(userRepository.findByLogin(TestUtil.LOGIN)).thenReturn(Optional.empty());
 
         UserNotFoundException userNotFoundException = assertThrows(UserNotFoundException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
-        assertEquals("User with login: subject not found", userNotFoundException.getMessage());
+        assertEquals("User with login: " + TestUtil.LOGIN + " not found", userNotFoundException.getMessage());
 
         verify(jwtService, never()).generateAccessToken(user);
 

@@ -1,5 +1,6 @@
 package com.jobflow.user_service.user;
 
+import com.jobflow.user_service.TestUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +21,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
 
-
     @Mock
     private SecurityContext securityContext;
 
@@ -35,7 +35,7 @@ class UserServiceImplTest {
     @BeforeEach
     public void setup() {
         SecurityContextHolder.setContext(securityContext);
-        user = new User(1L, "Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde", Role.ROLE_USER);
+        user = TestUtil.createUser();
     }
 
     @Test

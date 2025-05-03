@@ -2,10 +2,8 @@ package com.jobflow.user_service.register;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobflow.user_service.exception.EmailServiceException;
-import com.jobflow.user_service.exception.InvalidVerificationCodeException;
-import com.jobflow.user_service.exception.UserAlreadyExistsException;
-import com.jobflow.user_service.exception.VerificationCodeExpiredException;
+import com.jobflow.user_service.TestUtil;
+import com.jobflow.user_service.exception.*;
 import com.jobflow.user_service.handler.GlobalHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,11 +12,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.multipart.MultipartFile;
 
 import static org.mockito.Mockito.*;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,40 +52,65 @@ class RegisterControllerTest {
 
     private String resendCodeRequestJson;
 
+    private MockMultipartFile userPart;
+
     @BeforeEach
     public void setup() throws JsonProcessingException {
         mockMvc = MockMvcBuilders.standaloneSetup(registerController)
                 .setControllerAdvice(new GlobalHandler())
                 .build();
-        registerResponse = new RegisterResponse("access.jwt.token", "refresh.jwt.token");
-        registerRequest = new RegisterRequest("Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde");
+        registerRequest = TestUtil.createRegisterRequest();
         registerRequestJson = objectMapper.writeValueAsString(registerRequest);
-        confirmCodeRequest = new ConfirmCodeRequest("IvanIvanov@gmail.com", 111111);
+        registerResponse = new RegisterResponse(TestUtil.ACCESS_TOKEN, TestUtil.REFRESH_TOKEN);
+
+        userPart = new MockMultipartFile("user", "", MediaType.APPLICATION_JSON_VALUE, registerRequestJson.getBytes());
+
+        confirmCodeRequest = TestUtil.createConfirmCodeRequest();
         confirmCodeRequestJson = objectMapper.writeValueAsString(confirmCodeRequest);
-        resendCodeRequest = new ResendCodeRequest("IvanIvanov@gmail.com");
+
+        resendCodeRequest = TestUtil.createResendCodeRequest();
         resendCodeRequestJson = objectMapper.writeValueAsString(resendCodeRequest);
     }
 
     @Test
     public void register_sendCodeSuccessfully() throws Exception {
-        doNothing().when(registerService).register(registerRequest);
+        doNothing().when(registerService).register(registerRequest, null);
 
-        mockMvc.perform(post("/api/v1/register")
-                        .contentType(APPLICATION_JSON)
+        mockMvc.perform(multipart("/api/v1/register")
+                        .file(userPart)
+                        .contentType(MULTIPART_FORM_DATA)
                         .accept(APPLICATION_JSON)
                         .content(registerRequestJson))
                 .andExpect(status().isOk());
 
-        verify(registerService, times(1)).register(registerRequest);
+        verify(registerService, times(1)).register(registerRequest, null);
+    }
+
+    @Test
+    public void register_withAvatar_sendCodeSuccessfully() throws Exception {
+        doNothing().when(registerService).register(eq(registerRequest), any(MultipartFile.class));
+        MockMultipartFile avatarPart = new MockMultipartFile("avatar", "", MediaType.IMAGE_PNG_VALUE, "dummy_file".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/register")
+                        .file(userPart)
+                        .file(avatarPart)
+                        .contentType(MULTIPART_FORM_DATA)
+                        .accept(APPLICATION_JSON)
+                        .content(registerRequestJson))
+                .andExpect(status().isOk());
+
+        verify(registerService, times(1)).register(eq(registerRequest), any(MultipartFile.class));
     }
 
     @Test
     public void register_invalidData_returnBadRequest() throws Exception {
-        RegisterRequest invalidRequest = new RegisterRequest("", "", "", "");
+        RegisterRequest invalidRequest = new RegisterRequest("", "", "", "", null);
         String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
+        MockMultipartFile invalidUserPart = new MockMultipartFile("user", "", MediaType.APPLICATION_JSON_VALUE, invalidRequestJson.getBytes());
 
-        mockMvc.perform(post("/api/v1/register")
-                        .contentType(APPLICATION_JSON)
+        mockMvc.perform(multipart("/api/v1/register")
+                        .file(invalidUserPart)
+                        .contentType(MULTIPART_FORM_DATA)
                         .accept(APPLICATION_JSON)
                         .content(invalidRequestJson))
                 .andExpect(status().isBadRequest())
@@ -97,10 +124,11 @@ class RegisterControllerTest {
     @Test
     public void register_userAlreadyExists_returnConflict() throws Exception {
         var userAlreadyExistsException = new UserAlreadyExistsException("User with login: " + registerRequest.getLogin() + " already exists");
-        doThrow(userAlreadyExistsException).when(registerService).register(registerRequest);
+        doThrow(userAlreadyExistsException).when(registerService).register(registerRequest, null);
 
-        mockMvc.perform(post("/api/v1/register")
-                        .contentType(APPLICATION_JSON)
+        mockMvc.perform(multipart("/api/v1/register")
+                        .file(userPart)
+                        .contentType(MULTIPART_FORM_DATA)
                         .accept(APPLICATION_JSON)
                         .content(registerRequestJson))
                 .andExpect(status().isConflict())
@@ -109,16 +137,17 @@ class RegisterControllerTest {
                 .andExpect(jsonPath("$.time").exists());
 
 
-        verify(registerService, times(1)).register(registerRequest);
+        verify(registerService, times(1)).register(registerRequest, null);
     }
 
     @Test
     public void register_emailServiceException_returnInternalServerError() throws Exception {
         var emailServiceException = new EmailServiceException("Email service exception");
-        doThrow(emailServiceException).when(registerService).register(registerRequest);
+        doThrow(emailServiceException).when(registerService).register(registerRequest, null);
 
-        mockMvc.perform(post("/api/v1/register")
-                        .contentType(APPLICATION_JSON)
+        mockMvc.perform(multipart("/api/v1/register")
+                        .file(userPart)
+                        .contentType(MULTIPART_FORM_DATA)
                         .accept(APPLICATION_JSON)
                         .content(registerRequestJson))
                 .andExpect(status().isInternalServerError())
@@ -127,7 +156,26 @@ class RegisterControllerTest {
                 .andExpect(jsonPath("$.time").exists());
 
 
-        verify(registerService, times(1)).register(registerRequest);
+        verify(registerService, times(1)).register(registerRequest, null);
+    }
+
+    @Test
+    public void register_fileServiceException_returnInternalServerError() throws Exception {
+        var fileServiceException = new FileServiceException("File service exception");
+        doThrow(fileServiceException).when(registerService).register(registerRequest, null);
+
+        mockMvc.perform(multipart("/api/v1/register")
+                        .file(userPart)
+                        .contentType(MULTIPART_FORM_DATA)
+                        .accept(APPLICATION_JSON)
+                        .content(registerRequestJson))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value(fileServiceException.getMessage()))
+                .andExpect(jsonPath("$.status").value(HttpStatus.INTERNAL_SERVER_ERROR.value()))
+                .andExpect(jsonPath("$.time").exists());
+
+
+        verify(registerService, times(1)).register(registerRequest, null);
     }
 
     @Test
