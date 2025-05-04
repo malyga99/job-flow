@@ -1,6 +1,5 @@
 package com.jobflow.user_service.handler;
 
-import com.jobflow.user_service.email.EmailService;
 import com.jobflow.user_service.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +56,14 @@ public class GlobalHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseError);
     }
 
+    @ExceptionHandler(OpenIdServiceException.class)
+    public ResponseEntity<ResponseError> openIdServiceExcHandler(OpenIdServiceException exc) {
+        LOGGER.error("[OpenID Service Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseError);
+    }
+
     @ExceptionHandler(VerificationCodeExpiredException.class)
     public ResponseEntity<ResponseError> verificationCodeExpiredExcHandler(VerificationCodeExpiredException exc) {
         LOGGER.error("[Verification Code Expired Exception]: {}", exc.getMessage());
@@ -68,6 +75,30 @@ public class GlobalHandler {
     @ExceptionHandler(InvalidVerificationCodeException.class)
     public ResponseEntity<ResponseError> invalidVerificationCodeExcHandler(InvalidVerificationCodeException exc) {
         LOGGER.error("[Invalid Verification Code Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
+    }
+
+    @ExceptionHandler(UnsupportedProviderException.class)
+    public ResponseEntity<ResponseError> unsupportedProviderExcHandler(UnsupportedProviderException exc) {
+        LOGGER.error("[Unsupported Provider Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
+    }
+
+    @ExceptionHandler(StateValidationException.class)
+    public ResponseEntity<ResponseError> stateValidationExcHandler(StateValidationException exc) {
+        LOGGER.error("[State Validation Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
+    }
+
+    @ExceptionHandler(IdTokenValidationException.class)
+    public ResponseEntity<ResponseError> idTokenValidationExcHandler(IdTokenValidationException exc) {
+        LOGGER.error("[Id Token Validation Exception]: {}", exc.getMessage());
         ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.BAD_REQUEST.value());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);

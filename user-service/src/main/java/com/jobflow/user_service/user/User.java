@@ -24,10 +24,10 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
-    @Column(name = "firstname", length = 100, nullable = false)
+    @Column(name = "firstname", length = 100)
     private String firstname;
 
-    @Column(name = "lastname", length = 100, nullable = false)
+    @Column(name = "lastname", length = 100)
     private String lastname;
 
     @Column(name = "login", length = 100, nullable = false, unique=true)

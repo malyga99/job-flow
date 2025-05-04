@@ -3,11 +3,13 @@ package com.jobflow.user_service;
 import com.jobflow.user_service.auth.AuthenticationRequest;
 import com.jobflow.user_service.auth.LogoutRequest;
 import com.jobflow.user_service.auth.RefreshTokenRequest;
+import com.jobflow.user_service.openId.OpenIdProvider;
 import com.jobflow.user_service.register.ConfirmCodeRequest;
 import com.jobflow.user_service.register.RegisterRequest;
 import com.jobflow.user_service.register.ResendCodeRequest;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.LinkedMultiValueMap;
@@ -22,6 +24,10 @@ public final class TestUtil {
     public static final String REFRESH_TOKEN = "refresh.jwt.token";
     public static final String ACCESS_TOKEN = "access.jwt.token";
     public static final int CODE = 111111;
+
+    public static final OpenIdProvider PROVIDER = OpenIdProvider.GOOGLE;
+    public static final String STATE = "state";
+    public static final String AUTH_CODE = "authCode";
 
     private TestUtil() {
     }
