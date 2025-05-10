@@ -25,26 +25,30 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
+    private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationServiceImpl.class);
+
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RedisTemplate<String, String> redisTemplate;
     private final UserService userService;
     private final UserRepository userRepository;
-    private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
-    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationServiceImpl.class);
 
     @Override
     public AuthenticationResponse auth(AuthenticationRequest authenticationRequest) {
         LOGGER.debug("Starting user authentication with login: {}", authenticationRequest.getLogin());
         authenticationRequest.setLogin(authenticationRequest.getLogin().toLowerCase());
 
+        User userFromDb = userRepository.findByLogin(authenticationRequest.getLogin())
+                .orElseThrow(() -> new UserNotFoundException("User with login: " + authenticationRequest.getLogin() + " not found"));
+
         Authentication authenticate = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                authenticationRequest.getLogin(),
+                userFromDb.getId(),
                 authenticationRequest.getPassword()
         ));
 
         User user = (User) authenticate.getPrincipal();
-        LOGGER.debug("Successfully user authentication with login: {}", authenticationRequest.getLogin());
+        LOGGER.debug("Successfully user authentication: {}", user.displayInfo());
 
         return new AuthenticationResponse(
                 jwtService.generateAccessToken(user),
@@ -55,7 +59,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public void logout(LogoutRequest logoutRequest) {
         User currentUser = userService.getCurrentUser();
-        LOGGER.debug("Starting logout process for user: {}", currentUser.getLogin());
+        LOGGER.debug("Starting logout process for user: {}", currentUser.displayInfo());
 
         String refreshToken = logoutRequest.getRefreshToken();
         Claims claims = jwtService.extractClaims(refreshToken);
@@ -67,9 +71,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (ttl > 0) {
             String key = String.format(BLACKLIST_KEY, tokenId);
             redisTemplate.opsForValue().set(key, "true", ttl, TimeUnit.SECONDS);
-            LOGGER.debug("Successfully revoked refresh token with jti: {} (TTL: {} seconds) for user: {}", tokenId, ttl, currentUser.getLogin());
+            LOGGER.debug("Successfully revoked refresh token with jti: {} (TTL: {} seconds) for user: {}", tokenId, ttl, currentUser.displayInfo());
         } else {
-            LOGGER.debug("Refresh token with jti: {} for user: {} already expired", tokenId, currentUser.getLogin());
+            LOGGER.debug("Refresh token with jti: {} for user: {} already expired", tokenId, currentUser.displayInfo());
         }
     }
 
@@ -83,11 +87,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String tokenId = claims.getId();
         validateIsTokenRevoked(tokenId);
 
-        String login = claims.getSubject();
-        User user = userRepository.findByLogin(login)
-                        .orElseThrow(() -> new UserNotFoundException("User with login: " + login + " not found"));
+        String userId = claims.getSubject();
+        User user = userRepository.findById(Long.valueOf(userId))
+                        .orElseThrow(() -> new UserNotFoundException("User with id: " + userId + " not found"));
 
-        LOGGER.debug("Successfully refreshed token for user: {}", user.getLogin());
+        LOGGER.debug("Successfully refreshed token for user: {}", user.displayInfo());
         return jwtService.generateAccessToken(user);
     }
 

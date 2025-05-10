@@ -2,9 +2,9 @@ package com.jobflow.user_service.auth;
 
 import com.jobflow.user_service.BaseIT;
 import com.jobflow.user_service.TestUtil;
+import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.jwt.JwtService;
-import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
 import io.jsonwebtoken.Jwts;
@@ -15,13 +15,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Duration;
 import java.util.Date;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthenticationIT extends BaseIT {
 
@@ -40,11 +41,18 @@ public class AuthenticationIT extends BaseIT {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
+    @Autowired
+    private UserDetailsService userDetailsService;
+
     private AuthenticationRequest authenticationRequest;
+
+    private User savedUser;
 
     @BeforeEach
     public void setup() {
         initDb();
+        savedUser = userRepository.findAll().get(0);
+
         authenticationRequest = TestUtil.createAuthRequest();
     }
 
@@ -65,10 +73,10 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(responseBody.getAccessToken());
         assertNotNull(responseBody.getRefreshToken());
 
-        String loginAccessToken = jwtService.extractLogin(responseBody.getAccessToken());
-        String loginRefreshToken = jwtService.extractLogin(responseBody.getRefreshToken());
-        assertEquals(TestUtil.LOGIN, loginAccessToken);
-        assertEquals(TestUtil.LOGIN, loginRefreshToken);
+        String userIdAccessToken = jwtService.extractUserId(responseBody.getAccessToken());
+        String userIdRefreshToken = jwtService.extractUserId(responseBody.getRefreshToken());
+        assertEquals(savedUser.getId(), Long.valueOf(userIdAccessToken));
+        assertEquals(savedUser.getId(), Long.valueOf(userIdRefreshToken));
     }
 
     @Test
@@ -257,8 +265,8 @@ public class AuthenticationIT extends BaseIT {
         String refreshedToken = response.getBody();
         assertNotNull(refreshedToken);
 
-        String refreshedTokenLogin = jwtService.extractLogin(refreshedToken);
-        assertEquals(TestUtil.LOGIN, refreshedTokenLogin);
+        String refreshedTokenUserId = jwtService.extractUserId(refreshedToken);
+        assertEquals(savedUser.getId(), Long.valueOf(refreshedTokenUserId));
     }
 
     @Test
@@ -333,6 +341,13 @@ public class AuthenticationIT extends BaseIT {
         assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
     }
 
+    @Test
+    public void loadUserByUsername_idNotFound_returnNotFound() {
+        var userNotFoundException = assertThrows(UserNotFoundException.class, () -> userDetailsService.loadUserByUsername("999"));
+
+        assertEquals("User with id: 999 not found", userNotFoundException.getMessage());
+    }
+
     private AuthenticationResponse authenticateUser() {
         HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(authenticationRequest);
         ResponseEntity<AuthenticationResponse> response = restTemplate.exchange(
@@ -347,7 +362,7 @@ public class AuthenticationIT extends BaseIT {
 
     private String generateExpiredRefreshToken() {
         return Jwts.builder()
-                .setSubject(TestUtil.LOGIN)
+                .setSubject(String.valueOf(savedUser.getId()))
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() - 1000L))
                 .signWith(jwtService.getSecretKey(), SignatureAlgorithm.HS256)
@@ -365,6 +380,8 @@ public class AuthenticationIT extends BaseIT {
         userRepository.deleteAll();
 
         User user = TestUtil.createUser();
+
+        user.setId(null);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
     }

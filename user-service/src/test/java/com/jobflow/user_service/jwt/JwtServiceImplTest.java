@@ -1,22 +1,15 @@
 package com.jobflow.user_service.jwt;
 
 import com.jobflow.user_service.TestUtil;
-import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.security.Key;
-import java.util.Base64;
 import java.util.Date;
 import java.util.Map;
 
@@ -114,12 +107,12 @@ class JwtServiceImplTest {
     }
 
     @Test
-    public void extractLogin_returnExtractedLogin() {
+    public void extractUserId_returnExtractedUserId() {
         String token = jwtService.generateAccessToken(userDetails);
-        String login = jwtService.extractLogin(token);
+        String userId = jwtService.extractUserId(token);
 
-        assertNotNull(login);
-        assertEquals(userDetails.getUsername(), login);
+        assertNotNull(userId);
+        assertEquals(userDetails.getUsername(), userId);
     }
 
     @Test
@@ -142,7 +135,7 @@ class JwtServiceImplTest {
     @Test
     public void isValid_userNotMatches_returnFalse() {
         String token = jwtService.generateAccessToken(userDetails);
-        boolean result = jwtService.isValid(User.builder().login("NotIvanIvanov@gmail.com").build(), token);
+        boolean result = jwtService.isValid(User.builder().id(-100L).build(), token);
 
         assertFalse(result);
     }

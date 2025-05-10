@@ -25,8 +25,9 @@ import org.springframework.web.multipart.MultipartFile;
 )
 public class RegisterController {
 
-    private final RegisterService registerService;
     private static final Logger LOGGER = LoggerFactory.getLogger(RegisterController.class);
+
+    private final RegisterService registerService;
 
     @Operation(
             summary = "User registration",
@@ -49,6 +50,7 @@ public class RegisterController {
             @RequestPart(value = "avatar", required = false) @Parameter(description = "User avatar", required = false) MultipartFile avatar
     ) {
         LOGGER.info("[POST] Register request received for login: {}", registerRequest.getLogin());
+
         registerService.register(registerRequest, avatar);
         return ResponseEntity.ok().build();
     }
@@ -77,6 +79,7 @@ public class RegisterController {
             ) ResendCodeRequest resendCodeRequest
     ) {
         LOGGER.info("[POST] Resend code request received for login: {}", resendCodeRequest.getLogin());
+
         registerService.resendCode(resendCodeRequest);
         return ResponseEntity.ok().build();
     }
@@ -105,6 +108,7 @@ public class RegisterController {
             ) ConfirmCodeRequest confirmCodeRequest
     ) {
         LOGGER.info("[POST] Confirm code request received for login: {}", confirmCodeRequest.getLogin());
+
         return ResponseEntity.ok(registerService.confirmCode(confirmCodeRequest));
     }
 }

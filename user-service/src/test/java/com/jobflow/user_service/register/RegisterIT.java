@@ -7,6 +7,7 @@ import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.email.EmailService;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
@@ -22,7 +23,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.util.Map;
@@ -104,6 +104,7 @@ public class RegisterIT extends BaseIT {
         assertEquals(registerRequest.getLastname(), savedRequest.getLastname());
         assertEquals(registerRequest.getLogin(), savedRequest.getLogin());
         assertTrue(passwordEncoder.matches("abcde", savedRequest.getPassword()));
+        assertNotNull(savedRequest.getAvatar());
 
         int code = Integer.parseInt(redisCodeJson);
         assertTrue(code >= 100_000 && code <= 999_999, "Verification code must be 6 digits");
@@ -181,21 +182,22 @@ public class RegisterIT extends BaseIT {
         assertNotNull(responseBody.getAccessToken());
         assertNotNull(responseBody.getRefreshToken());
 
-        String loginAccessToken = jwtService.extractLogin(responseBody.getAccessToken());
-        String loginRefreshToken = jwtService.extractLogin(responseBody.getRefreshToken());
-        assertEquals(confirmCodeRequest.getLogin(), loginAccessToken);
-        assertEquals(confirmCodeRequest.getLogin(), loginRefreshToken);
+        User savedUser = userRepository.findByLogin(confirmCodeRequest.getLogin()).get();
+        String userIdAccessToken = jwtService.extractUserId(responseBody.getAccessToken());
+        String userIdRefreshToken = jwtService.extractUserId(responseBody.getRefreshToken());
+        assertEquals(savedUser.getId(), Long.valueOf(userIdAccessToken));
+        assertEquals(savedUser.getId(), Long.valueOf(userIdRefreshToken));
 
         assertNull(redisTemplate.opsForValue().get("email:verify:" + confirmCodeRequest.getLogin()));
         assertNull(redisTemplate.opsForValue().get("email:data:" + confirmCodeRequest.getLogin()));
 
-        User savedUser = userRepository.findByLogin(confirmCodeRequest.getLogin()).get();
         assertNotNull(savedUser);
         assertEquals(registerRequest.getFirstname(), savedUser.getFirstname());
         assertEquals(registerRequest.getLastname(), savedUser.getLastname());
         assertEquals(registerRequest.getLogin(), savedUser.getLogin());
         assertEquals(registerRequest.getPassword(), savedUser.getPassword());
         assertEquals(Role.ROLE_USER, savedUser.getRole());
+        assertEquals(AuthProvider.LOCAL, savedUser.getAuthProvider());
     }
 
     @Test
@@ -261,7 +263,7 @@ public class RegisterIT extends BaseIT {
 
     @Test
     public void resendCode_successfullyResendNewCode() {
-        saveDataInRedis(registerRequest.getLogin(), String.valueOf(TestUtil.CODE), registerRequestJson);
+        saveDataInRedis(resendCodeRequest.getLogin(), String.valueOf(TestUtil.CODE), registerRequestJson);
 
         HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(resendCodeRequest);
         ResponseEntity<Void> response = restTemplate.exchange(
@@ -331,6 +333,8 @@ public class RegisterIT extends BaseIT {
 
     private void initDb() {
         User user = TestUtil.createUser();
+        user.setId(null);
+
         userRepository.save(user);
     }
 

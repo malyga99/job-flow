@@ -24,13 +24,13 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
-    @Column(name = "firstname", length = 100, nullable = false)
+    @Column(name = "firstname", length = 100)
     private String firstname;
 
-    @Column(name = "lastname", length = 100, nullable = false)
+    @Column(name = "lastname", length = 100)
     private String lastname;
 
-    @Column(name = "login", length = 100, nullable = false, unique=true)
+    @Column(name = "login", length = 100, unique=true)
     private String login;
 
     @Column(name = "password", length = 100)
@@ -43,6 +43,13 @@ public class User implements UserDetails {
     @Column(name = "role", nullable = false)
     private Role role;
 
+    @Enumerated(value = STRING)
+    @Column(name = "auth_provider", nullable = false)
+    private AuthProvider authProvider;
+
+    @Column(name = "auth_provider_id", length = 255)
+    private String authProviderId;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role.name()));
@@ -53,9 +60,10 @@ public class User implements UserDetails {
         return password;
     }
 
+    //The id is used because when logging from an external OpenID provider, the login will be null
     @Override
     public String getUsername() {
-        return login;
+        return String.valueOf(id);
     }
 
     @Override
@@ -76,5 +84,9 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    public String displayInfo() {
+        return String.format("login = %s, id = %s", login, id);
     }
 }
