@@ -56,6 +56,7 @@ public class AuthenticationController {
             ) AuthenticationRequest authenticationRequest
     ) {
         LOGGER.info("[POST] Authenticate request received for login: {}", authenticationRequest.getLogin());
+
         return ResponseEntity.ok(authenticationService.auth(authenticationRequest));
     }
 
@@ -83,6 +84,7 @@ public class AuthenticationController {
             ) LogoutRequest logoutRequest
     ) {
         LOGGER.info("[POST] Logout request received");
+
         authenticationService.logout(logoutRequest);
         return ResponseEntity.ok().build();
     }
@@ -111,6 +113,7 @@ public class AuthenticationController {
             ) RefreshTokenRequest refreshTokenRequest
     ) {
         LOGGER.info("[POST] Refresh token request received");
+
         return ResponseEntity.ok(authenticationService.refreshToken(refreshTokenRequest));
     }
 }

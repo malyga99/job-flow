@@ -7,6 +7,7 @@ import com.jobflow.user_service.exception.IdTokenValidationException;
 import com.jobflow.user_service.exception.OpenIdServiceException;
 import com.jobflow.user_service.exception.StateValidationException;
 import com.jobflow.user_service.handler.GlobalHandler;
+import com.jobflow.user_service.user.AuthProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,7 +52,7 @@ class OpenIdControllerTest {
                 .setControllerAdvice(new GlobalHandler())
                 .build();
 
-        openIdRequest = new OpenIdRequest(TestUtil.PROVIDER, TestUtil.STATE, TestUtil.AUTH_CODE);
+        openIdRequest = TestUtil.createOpenIdRequest();
         openIdRequestJson = objectMapper.writeValueAsString(openIdRequest);
         openIdResponse = new OpenIdResponse(TestUtil.ACCESS_TOKEN, TestUtil.REFRESH_TOKEN);
 
@@ -91,7 +92,7 @@ class OpenIdControllerTest {
 
     @Test
     public void getJwtTokens_unsupportedProvider_returnBadRequest() throws Exception {
-        openIdRequest.setProvider(OpenIdProvider.GITHUB); //In this test, mock supports only "GOOGLE"
+        openIdRequest.setProvider(AuthProvider.GITHUB); //In this test, mock supports only "GOOGLE"
         openIdRequestJson = objectMapper.writeValueAsString(openIdRequest);
 
         mockMvc.perform(post("/api/v1/openid")

@@ -3,13 +3,13 @@ package com.jobflow.user_service;
 import com.jobflow.user_service.auth.AuthenticationRequest;
 import com.jobflow.user_service.auth.LogoutRequest;
 import com.jobflow.user_service.auth.RefreshTokenRequest;
-import com.jobflow.user_service.openId.OpenIdProvider;
+import com.jobflow.user_service.user.AuthProvider;
+import com.jobflow.user_service.openId.OpenIdRequest;
 import com.jobflow.user_service.register.ConfirmCodeRequest;
 import com.jobflow.user_service.register.RegisterRequest;
 import com.jobflow.user_service.register.ResendCodeRequest;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.LinkedMultiValueMap;
@@ -19,13 +19,14 @@ import java.util.Map;
 
 public final class TestUtil {
 
+    public static final String USER_ID = "1";
     public static final String LOGIN = "ivanivanov@gmail.com";
     public static final String PASSWORD = "abcde";
     public static final String REFRESH_TOKEN = "refresh.jwt.token";
     public static final String ACCESS_TOKEN = "access.jwt.token";
     public static final int CODE = 111111;
 
-    public static final OpenIdProvider PROVIDER = OpenIdProvider.GOOGLE;
+    public static final AuthProvider PROVIDER = AuthProvider.GOOGLE;
     public static final String STATE = "state";
     public static final String AUTH_CODE = "authCode";
 
@@ -76,14 +77,20 @@ public final class TestUtil {
         return new ResendCodeRequest(LOGIN);
     }
 
+    public static OpenIdRequest createOpenIdRequest() {
+        return new OpenIdRequest(PROVIDER, STATE, AUTH_CODE);
+    }
+
     public static User createUser() {
         return User.builder()
+                .id(Long.valueOf(USER_ID))
                 .firstname("Ivan")
                 .lastname("Ivanov")
                 .login(LOGIN)
                 .password(PASSWORD)
                 .avatar("dummy".getBytes())
                 .role(Role.ROLE_USER)
+                .authProvider(AuthProvider.LOCAL)
                 .build();
     }
 }

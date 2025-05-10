@@ -20,17 +20,18 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
-    private final ObjectMapper objectMapper;
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomAccessDeniedHandler.class);
+
+    private final ObjectMapper objectMapper;
 
     @Override
     public void handle(HttpServletRequest request,
                        HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException, ServletException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String login = (authentication != null) ? authentication.getName() : "Anonymous";
+        String userId = (authentication != null) ? authentication.getName() : "Anonymous";
 
-        LOGGER.error("[Authorization Error]: {} for request: {} by user: {}", accessDeniedException.getMessage(), request.getRequestURI(), login);
+        LOGGER.error("[Authorization Error]: {} for request: {} by userId: {}", accessDeniedException.getMessage(), request.getRequestURI(), userId);
 
         response.setContentType("application/json");
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);

@@ -20,7 +20,7 @@ public class UserServiceImpl implements UserService {
         }
 
         User currentUser = (User) authentication.getPrincipal();
-        LOGGER.debug("Fetched current user with login: {}", currentUser.getLogin());
+        LOGGER.debug("Fetched current user: {}", currentUser.displayInfo());
 
         return currentUser;
     }

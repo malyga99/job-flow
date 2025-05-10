@@ -2,6 +2,7 @@ package com.jobflow.user_service.openIdGoogle;
 
 import com.jobflow.user_service.exception.IdTokenValidationException;
 import com.jobflow.user_service.exception.OpenIdServiceException;
+import com.jobflow.user_service.openId.OpenIdCacheService;
 import com.jobflow.user_service.openId.OpenIdJwtUtils;
 import com.jobflow.user_service.openId.OpenIdTokenValidator;
 import com.nimbusds.jose.JOSEException;
@@ -11,9 +12,10 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.text.ParseException;
 import java.time.Instant;
 import java.util.Date;
 
@@ -21,11 +23,13 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class GoogleOpenIdTokenValidator implements OpenIdTokenValidator {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(GoogleOpenIdTokenValidator.class);
     private final GoogleOpenIdProperties openIdProperties;
-    private final GoogleOpenIdCacheService cacheService;
+    private final OpenIdCacheService openIdCacheService;
 
     @Override
     public void validateIdToken(SignedJWT idToken) {
+        LOGGER.debug("Starting id token validation");
         JWTClaimsSet claims = OpenIdJwtUtils.extractClaims(idToken);
 
         String issuer = claims.getIssuer();
@@ -36,6 +40,8 @@ public class GoogleOpenIdTokenValidator implements OpenIdTokenValidator {
         validateAudience(audience);
         validateExpirationTime(expirationTime);
         validateJWKSet(idToken);
+
+        LOGGER.debug("Successfully id token validation");
     }
 
     private void validateIssuer(String issuer) {
@@ -61,7 +67,7 @@ public class GoogleOpenIdTokenValidator implements OpenIdTokenValidator {
         boolean isValid = false;
         String keyId = idToken.getHeader().getKeyID();
 
-        JWKSet jwkSet = cacheService.getJwkSet();
+        JWKSet jwkSet = openIdCacheService.getJwkSet();
         for (JWK jwk : jwkSet.getKeys()) {
             if (jwk.getKeyID().equals(keyId)) {
                 try {

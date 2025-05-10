@@ -1,5 +1,6 @@
 package com.jobflow.user_service.openId;
 
+import com.jobflow.user_service.user.AuthProvider;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +16,7 @@ public class OpenIdRequest {
 
     @NotNull(message = "Provider must be filled in")
     @Schema(description = "OpenID provider", example = "GOOGLE")
-    private OpenIdProvider provider;
+    private AuthProvider provider;
 
     @NotBlank(message = "State must be filled in")
     @Schema(description = "State", example = "state")

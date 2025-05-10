@@ -4,7 +4,6 @@ import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.exception.TokenRevokedException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
-import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
 import com.jobflow.user_service.user.UserService;
@@ -80,15 +79,17 @@ class AuthenticationServiceImplTest {
 
         refreshTokenRequest = TestUtil.createRefreshRequest();
 
+        user = TestUtil.createUser();
+
         usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                authenticationRequest.getLogin(),
+                user.getId(),
                 authenticationRequest.getPassword()
         );
-        user = TestUtil.createUser();
     }
 
     @Test
     public void auth_returnAuthResponse() {
+        when(userRepository.findByLogin(authenticationRequest.getLogin())).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(usernamePasswordAuthenticationToken)).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(user);
         when(jwtService.generateAccessToken(user)).thenReturn(TestUtil.ACCESS_TOKEN);
@@ -101,32 +102,30 @@ class AuthenticationServiceImplTest {
         assertEquals(TestUtil.REFRESH_TOKEN, result.getRefreshToken());
         assertEquals(authenticationRequest.getLogin().toLowerCase(), authenticationRequest.getLogin());
 
+        verify(userRepository, times(1)).findByLogin(authenticationRequest.getLogin());
         verify(authenticationManager, times(1)).authenticate(usernamePasswordAuthenticationToken);
         verify(jwtService, times(1)).generateAccessToken(user);
         verify(jwtService, times(1)).generateRefreshToken(user);
     }
 
     @Test
-    public void auth_authException_throwExc() {
-        var badCredentialsException = new BadCredentialsException("Bad credentials");
-        when(authenticationManager.authenticate(usernamePasswordAuthenticationToken))
-                .thenThrow(badCredentialsException);
+    public void auth_userNotFound_throwExc() {
+        when(userRepository.findByLogin(authenticationRequest.getLogin())).thenReturn(Optional.empty());
 
-        BadCredentialsException result = assertThrows(BadCredentialsException.class, () -> authenticationService.auth(authenticationRequest));
-
-        assertEquals(badCredentialsException.getMessage(), result.getMessage());
-        verifyNoInteractions(jwtService);
+        var userNotFoundException = assertThrows(UserNotFoundException.class, () -> authenticationService.auth(authenticationRequest));
+        assertEquals("User with login: " + authenticationRequest.getLogin() + " not found", userNotFoundException.getMessage());
     }
 
     @Test
-    public void auth_userNotFound_throwExc() {
-        var userNotFoundException = new UserNotFoundException("User with login: " + authenticationRequest.getLogin() + " not found");
+    public void auth_authException_throwExc() {
+        BadCredentialsException badCredentialsException = new BadCredentialsException("Bad credentials");
+        when(userRepository.findByLogin(authenticationRequest.getLogin())).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(usernamePasswordAuthenticationToken))
-                .thenThrow(userNotFoundException);
+                .thenThrow(badCredentialsException);
 
-        UserNotFoundException result = assertThrows(UserNotFoundException.class, () -> authenticationService.auth(authenticationRequest));
+        var result = assertThrows(BadCredentialsException.class, () -> authenticationService.auth(authenticationRequest));
 
-        assertEquals(userNotFoundException.getMessage(), result.getMessage());
+        assertEquals(badCredentialsException.getMessage(), result.getMessage());
         verifyNoInteractions(jwtService);
     }
 
@@ -177,8 +176,8 @@ class AuthenticationServiceImplTest {
         when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
-        when(claims.getSubject()).thenReturn(TestUtil.LOGIN);
-        when(userRepository.findByLogin(TestUtil.LOGIN)).thenReturn(Optional.of(user));
+        when(claims.getSubject()).thenReturn(TestUtil.USER_ID);
+        when(userRepository.findById(Long.valueOf(TestUtil.USER_ID))).thenReturn(Optional.of(user));
         when(jwtService.generateAccessToken(user)).thenReturn(TestUtil.ACCESS_TOKEN);
 
         String result = authenticationService.refreshToken(refreshTokenRequest);
@@ -186,7 +185,7 @@ class AuthenticationServiceImplTest {
         assertNotNull(result);
         assertEquals(TestUtil.ACCESS_TOKEN, result);
 
-        verify(userRepository, times(1)).findByLogin(TestUtil.LOGIN);
+        verify(userRepository, times(1)).findById(Long.valueOf(TestUtil.USER_ID));
         verify(jwtService, times(1)).generateAccessToken(user);
     }
     @Test
@@ -196,7 +195,7 @@ class AuthenticationServiceImplTest {
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.TRUE);
 
-        TokenRevokedException tokenRevokedException = assertThrows(TokenRevokedException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
+        var tokenRevokedException = assertThrows(TokenRevokedException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
         assertEquals("Token with id: token-id revoked", tokenRevokedException.getMessage());
 
         verify(jwtService, never()).generateAccessToken(user);
@@ -208,11 +207,11 @@ class AuthenticationServiceImplTest {
         when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getId()).thenReturn(tokenId);
         when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
-        when(claims.getSubject()).thenReturn(TestUtil.LOGIN);
-        when(userRepository.findByLogin(TestUtil.LOGIN)).thenReturn(Optional.empty());
+        when(claims.getSubject()).thenReturn(TestUtil.USER_ID);
+        when(userRepository.findById(Long.valueOf(TestUtil.USER_ID))).thenReturn(Optional.empty());
 
-        UserNotFoundException userNotFoundException = assertThrows(UserNotFoundException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
-        assertEquals("User with login: " + TestUtil.LOGIN + " not found", userNotFoundException.getMessage());
+        var userNotFoundException = assertThrows(UserNotFoundException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
+        assertEquals("User with id: " + TestUtil.USER_ID + " not found", userNotFoundException.getMessage());
 
         verify(jwtService, never()).generateAccessToken(user);
 

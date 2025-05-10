@@ -2,6 +2,7 @@ package com.jobflow.user_service.openId;
 
 import com.jobflow.user_service.exception.UnsupportedProviderException;
 import com.jobflow.user_service.handler.ResponseError;
+import com.jobflow.user_service.user.AuthProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,7 +32,8 @@ import static java.util.stream.Collectors.toMap;
 public class OpenIdController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenIdController.class);
-    private final Map<OpenIdProvider, OpenIdService> openIdServices;
+
+    private final Map<AuthProvider, OpenIdService> openIdServices;
 
     public OpenIdController(List<OpenIdService> openIdServicesList) {
         openIdServices = openIdServicesList.stream()
@@ -57,7 +59,7 @@ public class OpenIdController {
                     description = "OpenID request details", required = true
             ) OpenIdRequest openIdRequest
     ) {
-        OpenIdProvider provider = openIdRequest.getProvider();
+        AuthProvider provider = openIdRequest.getProvider();
         LOGGER.info("[POST] OpenID request received for provider: {}", provider);
 
         OpenIdService openIdService = openIdServices.get(provider);

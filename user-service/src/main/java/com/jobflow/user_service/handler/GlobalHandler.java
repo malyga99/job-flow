@@ -109,7 +109,7 @@ public class GlobalHandler {
         String errorMessages = exc.getFieldErrors().stream()
                 .map(el -> "%s: %s".formatted(el.getField(), el.getDefaultMessage()))
                 .collect(joining(", "));
-        LOGGER.error("Validation Exception: {}", errorMessages);
+        LOGGER.error("[Validation Exception]: {}", errorMessages);
 
         ResponseError responseError = ResponseError.buildResponseError(errorMessages, HttpStatus.BAD_REQUEST.value());
 

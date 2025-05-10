@@ -9,11 +9,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -35,6 +32,7 @@ class UserServiceImplTest {
     @BeforeEach
     public void setup() {
         SecurityContextHolder.setContext(securityContext);
+
         user = TestUtil.createUser();
     }
 
@@ -57,7 +55,7 @@ class UserServiceImplTest {
     public void getCurrentUser_withoutAuthentication_throwExc() {
         when(securityContext.getAuthentication()).thenReturn(null);
 
-        AuthenticationCredentialsNotFoundException authenticationException = assertThrows(AuthenticationCredentialsNotFoundException.class, () -> userService.getCurrentUser());
+        var authenticationException = assertThrows(AuthenticationCredentialsNotFoundException.class, () -> userService.getCurrentUser());
         assertEquals("Current user is not authenticated", authenticationException.getMessage());
     }
 
@@ -66,7 +64,7 @@ class UserServiceImplTest {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(false);
 
-        AuthenticationCredentialsNotFoundException authenticationException = assertThrows(AuthenticationCredentialsNotFoundException.class, () -> userService.getCurrentUser());
+        var authenticationException = assertThrows(AuthenticationCredentialsNotFoundException.class, () -> userService.getCurrentUser());
         assertEquals("Current user is not authenticated", authenticationException.getMessage());
 
         verify(authentication, times(1)).isAuthenticated();

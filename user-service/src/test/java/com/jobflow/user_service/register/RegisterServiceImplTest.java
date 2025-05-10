@@ -5,6 +5,7 @@ import com.jobflow.user_service.email.EmailVerificationService;
 import com.jobflow.user_service.exception.FileServiceException;
 import com.jobflow.user_service.exception.UserAlreadyExistsException;
 import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
@@ -58,7 +59,6 @@ class RegisterServiceImplTest {
         resendCodeRequest = TestUtil.createResendCodeRequest();
 
         avatar = new MockMultipartFile("avatar", "dummy".getBytes());
-
     }
 
     @Test
@@ -107,15 +107,15 @@ class RegisterServiceImplTest {
 
     @Test
     public void register_failedToGetBytesFromAvatar_throwExc() throws IOException {
+        IOException ioException = new IOException("IO Exception");
         MultipartFile mockMultipartFile = mock(MultipartFile.class);
         when(userRepository.existsByLogin(registerRequest.getLogin().toLowerCase())).thenReturn(false);
-        when(mockMultipartFile.getBytes()).thenThrow(new IOException("IO Exception"));
+        when(mockMultipartFile.getBytes()).thenThrow(ioException);
 
         var fileServiceException = assertThrows(FileServiceException.class, () -> registerService.register(registerRequest, mockMultipartFile));
-        assertEquals("Failed to get bytes from avatar", fileServiceException.getMessage());
+        assertEquals("Failed to get bytes from avatar: " + ioException.getMessage(), fileServiceException.getMessage());
 
         verifyNoInteractions(emailVerificationService);
-
     }
 
     @Test
@@ -146,8 +146,9 @@ class RegisterServiceImplTest {
                         .lastname(registerRequest.getLastname())
                         .login(registerRequest.getLogin())
                         .password(registerRequest.getPassword())
-                        .role(Role.ROLE_USER)
                         .avatar(registerRequest.getAvatar())
+                        .role(Role.ROLE_USER)
+                        .authProvider(AuthProvider.LOCAL)
                         .build());
     }
 

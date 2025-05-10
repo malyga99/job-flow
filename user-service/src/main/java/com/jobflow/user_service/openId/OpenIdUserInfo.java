@@ -1,5 +1,6 @@
 package com.jobflow.user_service.openId;
 
+import com.jobflow.user_service.user.AuthProvider;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +20,9 @@ public class OpenIdUserInfo {
 
     private String lastname;
 
-    private String login;
+    private AuthProvider authProvider;
+
+    private String authProviderId;
 
     private String avatarUrl;
 }

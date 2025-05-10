@@ -4,6 +4,7 @@ import com.jobflow.user_service.email.EmailVerificationService;
 import com.jobflow.user_service.exception.FileServiceException;
 import com.jobflow.user_service.exception.UserAlreadyExistsException;
 import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
@@ -19,6 +20,7 @@ import java.io.IOException;
 @Service
 @RequiredArgsConstructor
 public class RegisterServiceImpl implements RegisterService {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(RegisterServiceImpl.class);
 
     private final UserRepository userRepository;
@@ -42,20 +44,6 @@ public class RegisterServiceImpl implements RegisterService {
         LOGGER.debug("Successfully sent verification code to user with login: {} for registration", registerRequest.getLogin());
     }
 
-    private byte[] getAvatarBytes(MultipartFile avatar) {
-        byte[] avatarBytes = null;
-
-        if (avatar != null && !avatar.isEmpty()) {
-            try {
-                avatarBytes = avatar.getBytes();
-            } catch (IOException e) {
-                throw new FileServiceException("Failed to get bytes from avatar", e);
-            }
-        }
-
-        return avatarBytes;
-    }
-
     @Override
     public RegisterResponse confirmCode(ConfirmCodeRequest confirmCodeRequest) {
         LOGGER.debug("Starting confirm code process for user with login: {}", confirmCodeRequest.getLogin());
@@ -68,11 +56,12 @@ public class RegisterServiceImpl implements RegisterService {
                 .lastname(registerRequest.getLastname())
                 .login(registerRequest.getLogin())
                 .password(registerRequest.getPassword())
-                .role(Role.ROLE_USER)
                 .avatar(registerRequest.getAvatar())
+                .role(Role.ROLE_USER)
+                .authProvider(AuthProvider.LOCAL)
                 .build());
 
-        LOGGER.debug("Successfully confirmed code for user with login: {}", confirmCodeRequest.getLogin());
+        LOGGER.debug("Successfully confirmed code for user: {}", user.displayInfo());
         return new RegisterResponse(
                 jwtService.generateAccessToken(user),
                 jwtService.generateRefreshToken(user)
@@ -90,5 +79,19 @@ public class RegisterServiceImpl implements RegisterService {
 
     private String setLoginLowercase(String login) {
         return login.toLowerCase();
+    }
+
+    private byte[] getAvatarBytes(MultipartFile avatar) {
+        byte[] avatarBytes = null;
+
+        if (avatar != null && !avatar.isEmpty()) {
+            try {
+                avatarBytes = avatar.getBytes();
+            } catch (IOException e) {
+                throw new FileServiceException("Failed to get bytes from avatar: " + e.getMessage(), e);
+            }
+        }
+
+        return avatarBytes;
     }
 }

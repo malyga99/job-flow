@@ -13,6 +13,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
 
@@ -25,6 +28,9 @@ class OpenIdUserServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private RestTemplate restTemplate;
+
     @Spy
     @InjectMocks
     private OpenIdUserService openIdUserService;
@@ -35,20 +41,21 @@ class OpenIdUserServiceTest {
 
     @BeforeEach
     public void setup() {
-        openIdUserInfo = new OpenIdUserInfo("Ivan", "Ivanov", TestUtil.LOGIN, "test-url");
+        openIdUserInfo = new OpenIdUserInfo("Ivan", "Ivanov", TestUtil.PROVIDER, "123", "avatar-url");
+
         user = TestUtil.createUser();
     }
 
     @Test
     public void getOrCreateUser_ifExists_returnUserAndDoesNotSave() {
-        when(userRepository.findByLogin(openIdUserInfo.getLogin())).thenReturn(Optional.of(user));
+        when(userRepository.findByAuthProviderAndAuthProviderId(openIdUserInfo.getAuthProvider(), openIdUserInfo.getAuthProviderId())).thenReturn(Optional.of(user));
 
         User result = openIdUserService.getOrCreateUser(openIdUserInfo);
 
         assertNotNull(result);
         assertEquals(user, result);
 
-        verify(userRepository, times(1)).findByLogin(openIdUserInfo.getLogin());
+        verify(userRepository, times(1)).findByAuthProviderAndAuthProviderId(openIdUserInfo.getAuthProvider(), openIdUserInfo.getAuthProviderId());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -57,7 +64,7 @@ class OpenIdUserServiceTest {
         ArgumentCaptor<User> argumentCaptor = ArgumentCaptor.forClass(User.class);
 
         byte[] mockAvatar = new byte[]{1, 2, 3};
-        when(userRepository.findByLogin(openIdUserInfo.getLogin())).thenReturn(Optional.empty());
+        when(userRepository.findByAuthProviderAndAuthProviderId(openIdUserInfo.getAuthProvider(), openIdUserInfo.getAuthProviderId())).thenReturn(Optional.empty());
         doReturn(mockAvatar).when(openIdUserService).fetchAvatarFromUrl(openIdUserInfo.getAvatarUrl());
         when(userRepository.save(any(User.class))).thenReturn(user);
 
@@ -66,16 +73,32 @@ class OpenIdUserServiceTest {
         assertNotNull(result);
         assertEquals(user, result);
 
-        verify(userRepository, times(1)).findByLogin(openIdUserInfo.getLogin());
+        verify(userRepository, times(1)).findByAuthProviderAndAuthProviderId(openIdUserInfo.getAuthProvider(), openIdUserInfo.getAuthProviderId());
         verify(userRepository, times(1)).save(argumentCaptor.capture());
 
         User savedUser = argumentCaptor.getValue();
         assertEquals(openIdUserInfo.getFirstname(), savedUser.getFirstname());
         assertEquals(openIdUserInfo.getLastname(), savedUser.getLastname());
-        assertEquals(openIdUserInfo.getLogin(), savedUser.getLogin());
+        assertEquals(openIdUserInfo.getAuthProvider(), savedUser.getAuthProvider());
+        assertEquals(openIdUserInfo.getAuthProviderId(), savedUser.getAuthProviderId());
         assertNull(savedUser.getPassword());
         assertEquals(mockAvatar, savedUser.getAvatar());
         assertEquals(Role.ROLE_USER, savedUser.getRole());
+    }
+
+    @Test
+    public void fetchAvatarFromUrl_urlIsNull_returnAvatar() {
+        byte[] avatar = new byte[]{1, 2, 3};
+        when(restTemplate.getForEntity("test-url", byte[].class)).thenReturn(
+                new ResponseEntity<>(avatar, HttpStatus.OK)
+        );
+
+        byte[] result = openIdUserService.fetchAvatarFromUrl("test-url");
+
+        assertNotNull(result);
+        assertEquals(avatar, result);
+
+        verify(restTemplate, times(1)).getForEntity("test-url", byte[].class);
     }
 
     @Test
@@ -92,10 +115,4 @@ class OpenIdUserServiceTest {
         assertNull(result);
     }
 
-    @Test
-    public void fetchAvatarFromUrl_incorrectUrl_throwExc() {
-        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdUserService.fetchAvatarFromUrl("incorrect-url"));
-
-        assertTrue(openIdServiceException.getMessage().contains("Unable to download avatar from external provider: "));
-    }
 }

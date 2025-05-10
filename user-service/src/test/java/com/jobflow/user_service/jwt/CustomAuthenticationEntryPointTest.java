@@ -1,8 +1,9 @@
 package com.jobflow.user_service.jwt;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.handler.ResponseError;
+import com.jobflow.user_service.user.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,8 +22,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.io.IOException;
 import java.io.PrintWriter;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 class CustomAuthenticationEntryPointTest {
@@ -45,15 +47,24 @@ class CustomAuthenticationEntryPointTest {
     @InjectMocks
     private CustomAuthenticationEntryPoint authenticationEntryPoint;
 
+    private User user;
+
+    private String errorMessage;
+
+    private String expectedJson;
+
     @BeforeEach
     public void setup() {
         SecurityContextHolder.clearContext();
+
+        user = TestUtil.createUser();
+
+        errorMessage = "Invalid token";
+        expectedJson = "{\"message\": \"Invalid token\", \"status\": 401, \"time\": 2021-01-01 01:01}";
     }
 
     @Test
     public void commence_returnAuthenticationException() throws ServletException, IOException {
-        String errorMessage = "Invalid token";
-        String expectedJson = "{\"message\": \"Invalid token\", \"status\": 401, \"time\": 2021-01-01 01:01}";
         ArgumentCaptor<ResponseError> argumentCaptor = ArgumentCaptor.forClass(ResponseError.class);
 
         when(authenticationException.getMessage()).thenReturn(errorMessage);
@@ -76,11 +87,8 @@ class CustomAuthenticationEntryPointTest {
 
     @Test
     public void commence_withAuthenticatedUser_returnAuthenticationException() throws IOException, ServletException {
-        String errorMessage = "Invalid token";
-        String expectedJson = "{\"message\": \"Invalid token\", \"status\": 401, \"time\": 2021-01-01 01:01}";
-
         Authentication authentication = mock(Authentication.class);
-        when(authentication.getName()).thenReturn("mockUser");
+        when(authentication.getName()).thenReturn("1");
 
         SecurityContext context = mock(SecurityContext.class);
         SecurityContextHolder.setContext(context);

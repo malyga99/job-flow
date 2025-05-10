@@ -6,10 +6,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.exception.OpenIdServiceException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.openId.*;
+import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.User;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,37 +22,40 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.text.ParseException;
-
 @Service
 @RequiredArgsConstructor
 public class GoogleOpenIdService implements OpenIdService {
 
-    private final OpenIdStateValidator stateValidatorService;
-    private final OpenIdTokenValidator tokenValidatorService;
+    private static final Logger LOGGER = LoggerFactory.getLogger(GoogleOpenIdService.class);
+
+    private final OpenIdStateValidator openIdStateValidator;
+    private final OpenIdTokenValidator openIdTokenValidator;
     private final GoogleOpenIdProperties openIdProperties;
     private final OpenIdUserService openIdUserService;
-    private final OpenIdDataExtractor<JWTClaimsSet> dataExtractor;
+    private final OpenIdDataExtractor<JWTClaimsSet> openIdDataExtractor;
     private final JwtService jwtService;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
     @Override
     public OpenIdResponse getJwtTokens(OpenIdRequest openIdRequest) {
+        LOGGER.info("Starting Google OpenID authentication");
         String state = openIdRequest.getState();
         String authCode = openIdRequest.getAuthCode();
 
-        stateValidatorService.validateState(state);
+        openIdStateValidator.validateState(state);
 
         String idToken = exchangeAuthCode(authCode);
 
         SignedJWT signedJWT = OpenIdJwtUtils.getJwt(idToken);
-        tokenValidatorService.validateIdToken(signedJWT);
+        openIdTokenValidator.validateIdToken(signedJWT);
 
         JWTClaimsSet claims = OpenIdJwtUtils.extractClaims(signedJWT);
-        OpenIdUserInfo userInfo = dataExtractor.extractUserInfo(claims);
+        OpenIdUserInfo userInfo = openIdDataExtractor.extractUserInfo(claims);
 
         User user = openIdUserService.getOrCreateUser(userInfo);
+
+        LOGGER.info("Successfully Google OpenID authentication for user: {}", user.displayInfo());
         return new OpenIdResponse(
                 jwtService.generateAccessToken(user),
                 jwtService.generateRefreshToken(user)
@@ -58,6 +64,7 @@ public class GoogleOpenIdService implements OpenIdService {
 
     @Override
     public String exchangeAuthCode(String authCode) {
+        LOGGER.debug("Sending request to Google for exchange authCode");
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
@@ -75,15 +82,17 @@ public class GoogleOpenIdService implements OpenIdService {
                 String.class
         );
 
+        LOGGER.debug("Successfully received response from Google");
         return extractIdToken(response.getBody());
     }
 
     @Override
-    public OpenIdProvider getProviderName() {
-        return OpenIdProvider.GOOGLE;
+    public AuthProvider getProviderName() {
+        return AuthProvider.GOOGLE;
     }
 
     private String extractIdToken(String response) {
+        LOGGER.debug("Extracting id token from response body");
         JsonNode idTokenNode;
         try {
             JsonNode responseJsonNode = objectMapper.readTree(response);
@@ -95,6 +104,8 @@ public class GoogleOpenIdService implements OpenIdService {
         if (idTokenNode == null) {
             throw new OpenIdServiceException("Id token not found in the response body");
         }
+
+        LOGGER.debug("Successfully extracted id token: {}", idTokenNode.asToken());
         return idTokenNode.asText();
     }
 }
