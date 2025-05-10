@@ -9,4 +9,6 @@ public interface OpenIdService {
     String exchangeAuthCode(String authCode);
 
     AuthProvider getProviderName();
+
+    String extractToken(String response);
 }
