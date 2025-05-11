@@ -11,6 +11,8 @@ import java.util.Properties;
 @RequiredArgsConstructor
 public class EmailConfig {
 
+    private static final int TIMEOUT_MILLIS = 10000;
+
     private final EmailProperties emailProperties;
 
     @Bean
@@ -28,9 +30,9 @@ public class EmailConfig {
         properties.put("mail.smtp.starttls.enable", true);
         properties.put("mail.smtp.starttls.required", true);
         properties.put("mail.smtp.ssl.trust", "smtp.gmail.com");
-        properties.put("mail.smtp.connectiontimeout", 10000);
-        properties.put("mail.smtp.timeout", 10000);
-        properties.put("mail.smtp.writetimeout", 10000);
+        properties.put("mail.smtp.connectiontimeout", TIMEOUT_MILLIS);
+        properties.put("mail.smtp.timeout", TIMEOUT_MILLIS);
+        properties.put("mail.smtp.writetimeout", TIMEOUT_MILLIS);
 
         return javaMailSender;
     }

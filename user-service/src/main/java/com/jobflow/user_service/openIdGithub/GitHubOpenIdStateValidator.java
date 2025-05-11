@@ -1,4 +1,4 @@
-package com.jobflow.user_service.openIdGoogle;
+package com.jobflow.user_service.openIdGithub;
 
 import com.jobflow.user_service.exception.StateValidationException;
 import com.jobflow.user_service.openId.OpenIdStateValidator;
@@ -9,18 +9,18 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class GoogleOpenIdStateValidator implements OpenIdStateValidator {
+public class GitHubOpenIdStateValidator implements OpenIdStateValidator {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(GoogleOpenIdStateValidator.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GitHubOpenIdStateValidator.class);
 
-    private final GoogleOpenIdProperties openIdProperties;
+    private final GitHubOpenIdProperties openIdProperties;
 
     @Override
     public void validateState(String state) {
         LOGGER.debug("Starting state validation: {}", state);
-        String googleState = openIdProperties.getState();
+        String githubState = openIdProperties.getState();
 
-        if (!googleState.equals(state)) {
+        if (!githubState.equals(state)) {
             throw new StateValidationException("State: " + state + " not valid");
         }
 

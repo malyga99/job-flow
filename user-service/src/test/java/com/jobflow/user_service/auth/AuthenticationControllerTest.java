@@ -13,11 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.Mockito.*;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -70,8 +70,8 @@ class AuthenticationControllerTest {
         when(authenticationService.auth(authenticationRequest)).thenReturn(authenticationResponse);
 
         mockMvc.perform(post("/api/v1/auth")
-                        .contentType(APPLICATION_JSON)
-                        .accept(APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(authenticationRequestJson))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value(authenticationResponse.getAccessToken()))
@@ -86,8 +86,8 @@ class AuthenticationControllerTest {
         String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
 
         mockMvc.perform(post("/api/v1/auth")
-                        .contentType(APPLICATION_JSON)
-                        .accept(APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(invalidRequestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists())
@@ -103,8 +103,8 @@ class AuthenticationControllerTest {
         when(authenticationService.auth(authenticationRequest)).thenThrow(userNotFoundException);
 
         mockMvc.perform(post("/api/v1/auth")
-                        .contentType(APPLICATION_JSON)
-                        .accept(APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(authenticationRequestJson))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(userNotFoundException.getMessage()))
@@ -119,8 +119,8 @@ class AuthenticationControllerTest {
         doNothing().when(authenticationService).logout(logoutRequest);
 
         mockMvc.perform(post("/api/v1/auth/logout")
-                        .contentType(APPLICATION_JSON)
-                        .accept(APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(logoutRequestJson))
                 .andExpect(status().isOk());
 
@@ -133,8 +133,8 @@ class AuthenticationControllerTest {
         String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
 
         mockMvc.perform(post("/api/v1/auth/logout")
-                        .contentType(APPLICATION_JSON)
-                        .accept(APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(invalidRequestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists())
@@ -149,8 +149,8 @@ class AuthenticationControllerTest {
         when(authenticationService.refreshToken(refreshTokenRequest)).thenReturn(TestUtil.ACCESS_TOKEN);
 
         mockMvc.perform(post("/api/v1/auth/refresh")
-                        .contentType(APPLICATION_JSON)
-                        .accept(APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(refreshTokenRequestJson))
                 .andExpect(status().isOk())
                 .andExpect(content().string(TestUtil.ACCESS_TOKEN));
@@ -164,8 +164,8 @@ class AuthenticationControllerTest {
         String invalidRequestJson = objectMapper.writeValueAsString(invalidRequest);
 
         mockMvc.perform(post("/api/v1/auth/refresh")
-                        .contentType(APPLICATION_JSON)
-                        .accept(APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(invalidRequestJson))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists())
@@ -181,8 +181,8 @@ class AuthenticationControllerTest {
         when(authenticationService.refreshToken(refreshTokenRequest)).thenThrow(tokenRevokedException);
 
         mockMvc.perform(post("/api/v1/auth/refresh")
-                        .contentType(APPLICATION_JSON)
-                        .accept(APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(refreshTokenRequestJson))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value(tokenRevokedException.getMessage()))

@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -76,7 +75,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
         try {
             RegisterRequest registerRequest = objectMapper.readValue(dataFromRedis, RegisterRequest.class);
-            LOGGER.debug("Successfully validated verification code for user with login: {}", confirmCodeRequest.getLogin());
+            LOGGER.debug("Successfully validated verification code for user with login: {}", email);
 
             deleteVerificationData(email);
             return registerRequest;

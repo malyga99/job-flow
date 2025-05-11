@@ -33,6 +33,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuthenticationServiceImplTest {
 
+    private static final String TOKEN_ID = "token_id";
+
     @Mock
     private JwtService jwtService;
 
@@ -132,20 +134,19 @@ class AuthenticationServiceImplTest {
     @Test
     public void logout_successfullyRevokeToken() {
         Date expiration = Date.from(Instant.now().plusSeconds(3600L));
-        String tokenId = "token-id";
         ArgumentCaptor<Long> ttlCaptor = ArgumentCaptor.forClass(Long.class);
 
         when(userService.getCurrentUser()).thenReturn(user);
         when(jwtService.extractClaims(logoutRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getExpiration()).thenReturn(expiration);
-        when(claims.getId()).thenReturn(tokenId);
+        when(claims.getId()).thenReturn(TOKEN_ID);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         authenticationService.logout(logoutRequest);
 
         verify(jwtService, times(1)).extractClaims(logoutRequest.getRefreshToken());
         verify(valueOperations, times(1)).set(
-                eq("blacklist:refresh:token-id"),
+                eq("blacklist:refresh:" + TOKEN_ID),
                 eq("true"),
                 ttlCaptor.capture(),
                 eq(TimeUnit.SECONDS)
@@ -158,12 +159,11 @@ class AuthenticationServiceImplTest {
     @Test
     public void logout_expiredToken_skipBlacklist() {
         Date expiration = Date.from(Instant.now().minusSeconds(60L));
-        String tokenId = "token-id";
 
         when(userService.getCurrentUser()).thenReturn(user);
         when(jwtService.extractClaims(logoutRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getExpiration()).thenReturn(expiration);
-        when(claims.getId()).thenReturn(tokenId);
+        when(claims.getId()).thenReturn(TOKEN_ID);
 
         authenticationService.logout(logoutRequest);
 
@@ -172,10 +172,9 @@ class AuthenticationServiceImplTest {
 
     @Test
     public void refresh_returnAccessToken() {
-        String tokenId = "token-id";
         when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
-        when(claims.getId()).thenReturn(tokenId);
-        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
+        when(claims.getId()).thenReturn(TOKEN_ID);
+        when(redisTemplate.hasKey("blacklist:refresh:" + TOKEN_ID)).thenReturn(Boolean.FALSE);
         when(claims.getSubject()).thenReturn(TestUtil.USER_ID);
         when(userRepository.findById(Long.valueOf(TestUtil.USER_ID))).thenReturn(Optional.of(user));
         when(jwtService.generateAccessToken(user)).thenReturn(TestUtil.ACCESS_TOKEN);
@@ -190,23 +189,21 @@ class AuthenticationServiceImplTest {
     }
     @Test
     public void refresh_ifRevoked_throwExc() {
-        String tokenId = "token-id";
         when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
-        when(claims.getId()).thenReturn(tokenId);
-        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.TRUE);
+        when(claims.getId()).thenReturn(TOKEN_ID);
+        when(redisTemplate.hasKey("blacklist:refresh:" + TOKEN_ID)).thenReturn(Boolean.TRUE);
 
         var tokenRevokedException = assertThrows(TokenRevokedException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
-        assertEquals("Token with id: token-id revoked", tokenRevokedException.getMessage());
+        assertEquals("Token with id: " + TOKEN_ID + " revoked", tokenRevokedException.getMessage());
 
         verify(jwtService, never()).generateAccessToken(user);
     }
 
     @Test
     public void refresh_userNotFound_throwExc() {
-        String tokenId = "token-id";
         when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
-        when(claims.getId()).thenReturn(tokenId);
-        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
+        when(claims.getId()).thenReturn(TOKEN_ID);
+        when(redisTemplate.hasKey("blacklist:refresh:" + TOKEN_ID)).thenReturn(Boolean.FALSE);
         when(claims.getSubject()).thenReturn(TestUtil.USER_ID);
         when(userRepository.findById(Long.valueOf(TestUtil.USER_ID))).thenReturn(Optional.empty());
 

@@ -97,7 +97,7 @@ class EmailVerificationServiceImplTest {
     @Test
     public void validateVerificationCode_returnRegisterRequest() throws JsonProcessingException {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(VERIFY_KEY)).thenReturn(String.valueOf(confirmCodeRequest.getCode()));
         when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
         when(objectMapper.readValue(registerRequestJson, RegisterRequest.class)).thenReturn(registerRequest);
 
@@ -126,7 +126,7 @@ class EmailVerificationServiceImplTest {
     @Test
     public void validateVerificationCode_dataNotFound_throwExc() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(VERIFY_KEY)).thenReturn(String.valueOf(confirmCodeRequest.getCode()));
         when(valueOperations.get(DATA_KEY)).thenReturn(null);
 
         var verificationCodeExpiredException = assertThrows(VerificationCodeExpiredException.class, () -> emailVerificationService.validateVerificationCode(confirmCodeRequest));
@@ -150,7 +150,7 @@ class EmailVerificationServiceImplTest {
     @Test
     public void validateVerificationCode_jsonProcessingException_throwExc() throws JsonProcessingException {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(VERIFY_KEY)).thenReturn(String.valueOf(confirmCodeRequest.getCode()));
         when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
         when(objectMapper.readValue(registerRequestJson, RegisterRequest.class)).thenThrow(new JsonProcessingException("") {});
 
@@ -163,7 +163,7 @@ class EmailVerificationServiceImplTest {
     @Test
     public void resendCode_resendNewCode() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(VERIFY_KEY)).thenReturn(String.valueOf(confirmCodeRequest.getCode()));
         when(valueOperations.get(DATA_KEY)).thenReturn(registerRequestJson);
 
         emailVerificationService.resendCode(resendCodeRequest);
@@ -198,7 +198,7 @@ class EmailVerificationServiceImplTest {
     @Test
     public void resendCode_dataNotFound_throwExc() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(VERIFY_KEY)).thenReturn("111111");
+        when(valueOperations.get(VERIFY_KEY)).thenReturn(String.valueOf(confirmCodeRequest.getCode()));
         when(valueOperations.get(DATA_KEY)).thenReturn(null);
 
         var verificationCodeExpiredException = assertThrows(VerificationCodeExpiredException.class, () -> emailVerificationService.resendCode(resendCodeRequest));

@@ -80,26 +80,6 @@ public class AuthenticationIT extends BaseIT {
     }
 
     @Test
-    public void auth_invalidData_returnBadRequest() {
-        AuthenticationRequest invalidRequest = new AuthenticationRequest("", "");
-        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/auth",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-    }
-
-    @Test
     public void auth_userNotFound_returnNotFound() {
         authenticationRequest.setLogin("incorrectLogin");
         HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(authenticationRequest);
@@ -193,32 +173,6 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(error.getMessage());
         assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
         assertNotNull(error.getTime());
-    }
-
-    @Test
-    public void logout_invalidData_returnBadRequest() {
-        AuthenticationResponse authenticationResponse = authenticateUser();
-        String accessToken = authenticationResponse.getAccessToken();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-
-        LogoutRequest logoutRequest = new LogoutRequest(null);
-        HttpEntity<LogoutRequest> request = TestUtil.createRequest(logoutRequest, headers);
-
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/auth/logout",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
     }
 
     @Test
@@ -319,28 +273,7 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(error.getTime());
     }
 
-    @Test
-    public void refresh_invalidData_returnBadRequest() {
-
-        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(null);
-        HttpEntity<RefreshTokenRequest> request = TestUtil.createRequest(refreshTokenRequest);
-
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/auth/refresh",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-    }
-
+    //For JaCoCo code coverage
     @Test
     public void loadUserByUsername_idNotFound_returnNotFound() {
         var userNotFoundException = assertThrows(UserNotFoundException.class, () -> userDetailsService.loadUserByUsername("999"));

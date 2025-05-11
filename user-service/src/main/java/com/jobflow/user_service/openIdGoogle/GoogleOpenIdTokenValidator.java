@@ -24,6 +24,7 @@ import java.util.Date;
 public class GoogleOpenIdTokenValidator implements OpenIdTokenValidator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GoogleOpenIdTokenValidator.class);
+
     private final GoogleOpenIdProperties openIdProperties;
     private final OpenIdCacheService openIdCacheService;
 

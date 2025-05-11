@@ -2,7 +2,6 @@ package com.jobflow.user_service.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.handler.ResponseError;
-import com.jobflow.user_service.user.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

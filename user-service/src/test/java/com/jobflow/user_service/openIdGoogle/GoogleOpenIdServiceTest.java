@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.*;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.testcontainers.shaded.org.yaml.snakeyaml.events.Event;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -26,9 +27,6 @@ import static org.mockito.Mockito.*;
 class GoogleOpenIdServiceTest {
 
     private static final String ID_TOKEN = "test-id-token";
-    private static final String CLIENT_ID = "test-client-id";
-    private static final String CLIENT_SECRET = "test-client-secret";
-    private static final String REDIRECT_URI = "test-redirect-uri";
     private static final String GRANT_TYPE = "test-grant-type";
 
     @Mock
@@ -80,13 +78,8 @@ class GoogleOpenIdServiceTest {
     @BeforeEach
     public void setup() {
         openIdRequest = TestUtil.createOpenIdRequest();
-        userInfo = OpenIdUserInfo.builder()
-                .firstname("Ivan")
-                .lastname("Ivanov")
-                .authProvider(TestUtil.PROVIDER)
-                .authProviderId("123")
-                .avatarUrl("test-url")
-                .build();
+
+        userInfo = TestUtil.createOpenIdUserInfo();
         user = TestUtil.createUser();
     }
 
@@ -119,22 +112,19 @@ class GoogleOpenIdServiceTest {
     }
 
     @Test
-    public void exchangeAuthCode_returnIdToken() throws JsonProcessingException {
-        String expectedResponseBody = "{\"id_token\": \"mockIdToken\"}";
+    public void exchangeAuthCode_returnIdToken() {
         var argumentCaptor = ArgumentCaptor.forClass(HttpEntity.class);
-        ResponseEntity<String> response = new ResponseEntity<>(expectedResponseBody, HttpStatus.OK);
+        ResponseEntity<String> response = new ResponseEntity<>(ID_TOKEN, HttpStatus.OK);
         when(restTemplate.postForEntity(
                 eq("https://oauth2.googleapis.com/token"),
                 any(HttpEntity.class),
                 eq(String.class)
         )).thenReturn(response);
-        when(objectMapper.readTree(expectedResponseBody)).thenReturn(responseJsonNode);
-        when(responseJsonNode.get("id_token")).thenReturn(idTokenNode);
-        when(idTokenNode.asText()).thenReturn(ID_TOKEN);
+        doReturn(ID_TOKEN).when(openIdService).extractToken(response.getBody());
 
-        when(openIdProperties.getClientId()).thenReturn(CLIENT_ID);
-        when(openIdProperties.getClientSecret()).thenReturn(CLIENT_SECRET);
-        when(openIdProperties.getRedirectUri()).thenReturn(REDIRECT_URI);
+        when(openIdProperties.getClientId()).thenReturn(TestUtil.CLIENT_ID);
+        when(openIdProperties.getClientSecret()).thenReturn(TestUtil.CLIENT_SECRET);
+        when(openIdProperties.getRedirectUri()).thenReturn(TestUtil.REDIRECT_URI);
         when(openIdProperties.getGrantType()).thenReturn(GRANT_TYPE);
 
         String result = openIdService.exchangeAuthCode(TestUtil.AUTH_CODE);
@@ -152,44 +142,42 @@ class GoogleOpenIdServiceTest {
         MultiValueMap<String, String> body = httpEntity.getBody();
         HttpHeaders headers = httpEntity.getHeaders();
 
-        assertEquals(CLIENT_ID, body.getFirst("client_id"));
-        assertEquals(CLIENT_SECRET, body.getFirst("client_secret"));
-        assertEquals(REDIRECT_URI, body.getFirst("redirect_uri"));
+        assertEquals(TestUtil.CLIENT_ID, body.getFirst("client_id"));
+        assertEquals(TestUtil.CLIENT_SECRET, body.getFirst("client_secret"));
+        assertEquals(TestUtil.REDIRECT_URI, body.getFirst("redirect_uri"));
         assertEquals(GRANT_TYPE, body.getFirst("grant_type"));
         assertEquals(TestUtil.AUTH_CODE, body.getFirst("code"));
         assertEquals(MediaType.APPLICATION_FORM_URLENCODED, headers.getContentType());
     }
 
     @Test
-    public void exchangeAuthCode_withoutIdToken_throwExc() throws JsonProcessingException {
-        String expectedResponseBody = "{\"id_token\": \"mockIdToken\"}";
-        ResponseEntity<String> response = new ResponseEntity<>(expectedResponseBody, HttpStatus.OK);
-        when(restTemplate.postForEntity(
-                eq("https://oauth2.googleapis.com/token"),
-                any(HttpEntity.class),
-                eq(String.class)
-        )).thenReturn(response);
-        when(objectMapper.readTree(expectedResponseBody)).thenReturn(responseJsonNode);
+    public void extractToken_returnToken() throws JsonProcessingException {
+        when(objectMapper.readTree(ID_TOKEN)).thenReturn(responseJsonNode);
+        when(responseJsonNode.get("id_token")).thenReturn(idTokenNode);
+        when(idTokenNode.asText()).thenReturn(ID_TOKEN);
+
+        String result = openIdService.extractToken(ID_TOKEN);
+        assertNotNull(result);
+        assertEquals(ID_TOKEN, result);
+    }
+
+    @Test
+    public void extractToken_tokenNotFound_throwExc() throws JsonProcessingException {
+        when(objectMapper.readTree(ID_TOKEN)).thenReturn(responseJsonNode);
         when(responseJsonNode.get("id_token")).thenReturn(null);
 
-        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.exchangeAuthCode(TestUtil.AUTH_CODE));
+        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.extractToken(ID_TOKEN));
         assertEquals("Id token not found in the response body", openIdServiceException.getMessage());
     }
 
     @Test
-    public void exchangeAuthCode_extractIdTokenFailed_throwExc() throws JsonProcessingException {
-        var jsonProcessingException = new JsonProcessingException("Json exception") {};
-        String expectedResponseBody = "{\"id_token\": \"mockIdToken\"}";
-        ResponseEntity<String> response = new ResponseEntity<>(expectedResponseBody, HttpStatus.OK);
-        when(restTemplate.postForEntity(
-                eq("https://oauth2.googleapis.com/token"),
-                any(HttpEntity.class),
-                eq(String.class)
-        )).thenReturn(response);
-        when(objectMapper.readTree(expectedResponseBody)).thenThrow(jsonProcessingException);
+    public void extractToken_readNodeFailed_throwExc() throws JsonProcessingException {
+        JsonProcessingException jsonProcessingException = new JsonProcessingException("Json exception"){};
+        when(objectMapper.readTree(ID_TOKEN)).thenThrow(jsonProcessingException);
 
-        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.exchangeAuthCode(TestUtil.AUTH_CODE));
+        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.extractToken(ID_TOKEN));
         assertEquals("Extract id token exception: " + jsonProcessingException.getMessage(), openIdServiceException.getMessage());
     }
+
 
 }
