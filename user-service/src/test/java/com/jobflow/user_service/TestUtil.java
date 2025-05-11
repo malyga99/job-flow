@@ -3,6 +3,7 @@ package com.jobflow.user_service;
 import com.jobflow.user_service.auth.AuthenticationRequest;
 import com.jobflow.user_service.auth.LogoutRequest;
 import com.jobflow.user_service.auth.RefreshTokenRequest;
+import com.jobflow.user_service.openId.OpenIdUserInfo;
 import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.openId.OpenIdRequest;
 import com.jobflow.user_service.register.ConfirmCodeRequest;
@@ -29,6 +30,9 @@ public final class TestUtil {
     public static final AuthProvider PROVIDER = AuthProvider.GOOGLE;
     public static final String STATE = "state";
     public static final String AUTH_CODE = "authCode";
+    public static final String CLIENT_ID = "test-client-id";
+    public static final String CLIENT_SECRET = "test-client-secret";
+    public static final String REDIRECT_URI = "test-redirect-uri";
 
     private TestUtil() {
     }
@@ -79,6 +83,16 @@ public final class TestUtil {
 
     public static OpenIdRequest createOpenIdRequest() {
         return new OpenIdRequest(PROVIDER, STATE, AUTH_CODE);
+    }
+
+    public static OpenIdUserInfo createOpenIdUserInfo() {
+        return OpenIdUserInfo.builder()
+                .firstname("Ivan")
+                .lastname("Ivanov")
+                .authProvider(TestUtil.PROVIDER)
+                .authProviderId("123")
+                .avatarUrl("test-url")
+                .build();
     }
 
     public static User createUser() {

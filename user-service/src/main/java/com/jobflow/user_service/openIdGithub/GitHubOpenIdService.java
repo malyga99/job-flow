@@ -62,7 +62,6 @@ public class GitHubOpenIdService implements OpenIdService {
         String userData = getUserData(accessToken);
 
         OpenIdUserInfo userInfo = openIdDataExtractor.extractUserInfo(userData);
-
         User user = openIdUserService.getOrCreateUser(userInfo);
 
         LOGGER.info("Successfully Github OpenID authentication for user: {}", user.displayInfo());
