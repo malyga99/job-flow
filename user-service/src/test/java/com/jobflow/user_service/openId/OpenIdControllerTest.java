@@ -45,7 +45,7 @@ class OpenIdControllerTest {
 
     @BeforeEach
     public void setup() throws JsonProcessingException {
-        when(openIdService.getProviderName()).thenReturn(TestUtil.PROVIDER);
+        when(openIdService.getProviderName()).thenReturn(TestUtil.AUTH_PROVIDER);
         openIdController = new OpenIdController(List.of(openIdService));
 
         mockMvc = MockMvcBuilders.standaloneSetup(openIdController)

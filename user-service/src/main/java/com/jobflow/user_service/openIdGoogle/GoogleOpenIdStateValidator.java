@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 public class GoogleOpenIdStateValidator implements OpenIdStateValidator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GoogleOpenIdStateValidator.class);
+
     private final GoogleOpenIdProperties openIdProperties;
 
     @Override

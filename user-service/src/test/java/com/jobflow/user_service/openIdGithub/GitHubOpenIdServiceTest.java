@@ -26,8 +26,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class GitHubOpenIdServiceTest {
 
-    private static final String ACCESS_TOKEN = "test-access-token";
-
     @Mock
     private OpenIdStateValidator openIdStateValidator;
 
@@ -81,7 +79,7 @@ class GitHubOpenIdServiceTest {
     public void getJwtTokens_returnOpenIdResponse() {
         ResponseEntity<String> response = new ResponseEntity<>(expectedUserData, HttpStatus.OK);
         doNothing().when(openIdStateValidator).validateState(openIdRequest.getState());
-        doReturn(ACCESS_TOKEN).when(openIdService).exchangeAuthCode(openIdRequest.getAuthCode());
+        doReturn(TestUtil.ACCESS_TOKEN).when(openIdService).exchangeAuthCode(openIdRequest.getAuthCode());
         when(restTemplate.exchange(
                 eq("https://api.github.com/user"),
                 eq(HttpMethod.GET),
@@ -108,13 +106,13 @@ class GitHubOpenIdServiceTest {
     @Test
     public void exchangeAuthCode_returnAccessToken() {
         var argumentCaptor = ArgumentCaptor.forClass(HttpEntity.class);
-        ResponseEntity<String> response = new ResponseEntity<>(ACCESS_TOKEN, HttpStatus.OK);
+        ResponseEntity<String> response = new ResponseEntity<>(TestUtil.ACCESS_TOKEN, HttpStatus.OK);
         when(restTemplate.postForEntity(
                 eq("https://github.com/login/oauth/access_token"),
                 any(HttpEntity.class),
                 eq(String.class)
         )).thenReturn(response);
-        doReturn(ACCESS_TOKEN).when(openIdService).extractToken(response.getBody());
+        doReturn(TestUtil.ACCESS_TOKEN).when(openIdService).extractToken(response.getBody());
 
         when(openIdProperties.getClientId()).thenReturn(TestUtil.CLIENT_ID);
         when(openIdProperties.getClientSecret()).thenReturn(TestUtil.CLIENT_SECRET);
@@ -123,7 +121,7 @@ class GitHubOpenIdServiceTest {
         String result = openIdService.exchangeAuthCode(TestUtil.AUTH_CODE);
 
         assertNotNull(result);
-        assertEquals(ACCESS_TOKEN, result);
+        assertEquals(TestUtil.ACCESS_TOKEN, result);
 
         verify(restTemplate, times(1)).postForEntity(
                 eq("https://github.com/login/oauth/access_token"),
@@ -145,30 +143,30 @@ class GitHubOpenIdServiceTest {
 
     @Test
     public void extractToken_returnToken() throws JsonProcessingException {
-        when(objectMapper.readTree(ACCESS_TOKEN)).thenReturn(responseJsonNode);
+        when(objectMapper.readTree(TestUtil.ACCESS_TOKEN)).thenReturn(responseJsonNode);
         when(responseJsonNode.get("access_token")).thenReturn(idTokenNode);
-        when(idTokenNode.asText()).thenReturn(ACCESS_TOKEN);
+        when(idTokenNode.asText()).thenReturn(TestUtil.ACCESS_TOKEN);
 
-        String result = openIdService.extractToken(ACCESS_TOKEN);
+        String result = openIdService.extractToken(TestUtil.ACCESS_TOKEN);
         assertNotNull(result);
-        assertEquals(ACCESS_TOKEN, result);
+        assertEquals(TestUtil.ACCESS_TOKEN, result);
     }
 
     @Test
     public void extractToken_tokenNotFound_throwExc() throws JsonProcessingException {
-        when(objectMapper.readTree(ACCESS_TOKEN)).thenReturn(responseJsonNode);
+        when(objectMapper.readTree(TestUtil.ACCESS_TOKEN)).thenReturn(responseJsonNode);
         when(responseJsonNode.get("access_token")).thenReturn(null);
 
-        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.extractToken(ACCESS_TOKEN));
+        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.extractToken(TestUtil.ACCESS_TOKEN));
         assertEquals("Access token not found in the response body", openIdServiceException.getMessage());
     }
 
     @Test
     public void extractToken_readNodeFailed_throwExc() throws JsonProcessingException {
         JsonProcessingException jsonProcessingException = new JsonProcessingException("Json exception"){};
-        when(objectMapper.readTree(ACCESS_TOKEN)).thenThrow(jsonProcessingException);
+        when(objectMapper.readTree(TestUtil.ACCESS_TOKEN)).thenThrow(jsonProcessingException);
 
-        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.extractToken(ACCESS_TOKEN));
+        var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.extractToken(TestUtil.ACCESS_TOKEN));
         assertEquals("Extract access token exception: " + jsonProcessingException.getMessage(), openIdServiceException.getMessage());
     }
 }

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class GitHubOpenIdDataExtractor implements OpenIdDataExtractor<String> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GitHubOpenIdDataExtractor.class);
+
     private final ObjectMapper objectMapper;
 
     @Override

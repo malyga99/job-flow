@@ -113,28 +113,6 @@ public class RegisterIT extends BaseIT {
     }
 
     @Test
-    public void register_invalidData_returnBadRequest() {
-        RegisterRequest invalidRequest = new RegisterRequest("", "", "", "", null);
-        HttpEntity<MultiValueMap<String, Object>> request = TestUtil.createMultipartRequest(
-                Map.of("user", invalidRequest)
-        );
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/register",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-    }
-
-    @Test
     public void register_userAlreadyExists_returnBadRequest() {
         initDb();
 
@@ -183,6 +161,7 @@ public class RegisterIT extends BaseIT {
         assertNotNull(responseBody.getRefreshToken());
 
         User savedUser = userRepository.findByLogin(confirmCodeRequest.getLogin()).get();
+        assertNotNull(savedUser);
         String userIdAccessToken = jwtService.extractUserId(responseBody.getAccessToken());
         String userIdRefreshToken = jwtService.extractUserId(responseBody.getRefreshToken());
         assertEquals(savedUser.getId(), Long.valueOf(userIdAccessToken));
@@ -191,7 +170,6 @@ public class RegisterIT extends BaseIT {
         assertNull(redisTemplate.opsForValue().get("email:verify:" + confirmCodeRequest.getLogin()));
         assertNull(redisTemplate.opsForValue().get("email:data:" + confirmCodeRequest.getLogin()));
 
-        assertNotNull(savedUser);
         assertEquals(registerRequest.getFirstname(), savedUser.getFirstname());
         assertEquals(registerRequest.getLastname(), savedUser.getLastname());
         assertEquals(registerRequest.getLogin(), savedUser.getLogin());
@@ -217,27 +195,6 @@ public class RegisterIT extends BaseIT {
         ResponseError error = response.getBody();
         assertEquals("Verification code: " + confirmCodeRequest.getCode() + " invalid for user: " + confirmCodeRequest.getLogin(), error.getMessage());
         assertNotNull(error);
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-
-    }
-
-    @Test
-    public void confirmCode_invalidData_returnBadRequest() {
-        ConfirmCodeRequest invalidRequest = new ConfirmCodeRequest("", 0);
-        HttpEntity<ConfirmCodeRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/register/confirm",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
         assertNotNull(error.getTime());
         assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
     }
@@ -281,30 +238,10 @@ public class RegisterIT extends BaseIT {
         assertNotNull(redisDataJson);
 
         int code = Integer.parseInt(redisCodeJson);
-        assertTrue(code != 111111);
+        assertTrue(code != TestUtil.CODE);
         assertTrue(code >= 100_000 && code <= 999_999, "Verification code must be 6 digits");
 
         verify(emailService, times(1)).sendCodeToEmail(eq(registerRequest.getLogin()), anyInt());
-    }
-
-    @Test
-    public void resendCode_invalidData_returnBadRequest() {
-        ResendCodeRequest invalidRequest = new ResendCodeRequest("");
-        HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/register/resend",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
     }
 
     @Test

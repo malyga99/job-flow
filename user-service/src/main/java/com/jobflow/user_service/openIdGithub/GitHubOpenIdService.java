@@ -8,7 +8,6 @@ import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.openId.*;
 import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.User;
-import io.jsonwebtoken.Jwts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;

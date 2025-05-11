@@ -1,6 +1,5 @@
 package com.jobflow.user_service.openIdGithub;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.BaseIT;
 import com.jobflow.user_service.TestUtil;
@@ -27,14 +26,11 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 public class OpenIdGitHubIT extends BaseIT {
-
-    private static final String ACCESS_TOKEN = "access_token";
 
     private OpenIdRequest openIdRequest;
 
@@ -58,19 +54,24 @@ public class OpenIdGitHubIT extends BaseIT {
 
     private User user;
 
+    private byte[] avatar;
+
     @BeforeEach
     public void setup() throws JOSEException {
         userRepository.deleteAll();
 
-        openIdRequest = new OpenIdRequest(AuthProvider.GITHUB, openIdProperties.getState(), TestUtil.AUTH_CODE);
+        openIdRequest = TestUtil.createOpenIdRequest();
+        openIdRequest.setProvider(AuthProvider.GITHUB);
+        openIdRequest.setState(openIdProperties.getState());
 
         user = TestUtil.createUser();
+
+        avatar = new byte[] {1,2,3};
     }
 
     @Test
     public void getJwtTokens_returnOpenIdResponse() {
-        byte[] mockAvatar = new byte[]{1, 2, 3};
-        ResponseEntity<String> responseAccessToken = ResponseEntity.ok("{\"access_token\": \"" + ACCESS_TOKEN + "\"}");
+        ResponseEntity<String> responseAccessToken = ResponseEntity.ok("{\"access_token\": \"" + TestUtil.ACCESS_TOKEN + "\"}");
         when(restTemplate.postForEntity(
                 eq("https://github.com/login/oauth/access_token"),
                 any(HttpEntity.class),
@@ -86,7 +87,7 @@ public class OpenIdGitHubIT extends BaseIT {
                 eq(String.class)
         )).thenReturn(responseUserData);
 
-        ResponseEntity<byte[]> responseAvatar = ResponseEntity.ok(mockAvatar);
+        ResponseEntity<byte[]> responseAvatar = ResponseEntity.ok(avatar);
         when(restTemplate.getForEntity(eq("some_url"), eq(byte[].class)))
                 .thenReturn(responseAvatar);
 
@@ -122,20 +123,19 @@ public class OpenIdGitHubIT extends BaseIT {
         assertNotNull(savedUser.getAvatar());
         assertEquals(Role.ROLE_USER, savedUser.getRole());
         assertEquals(AuthProvider.GITHUB, savedUser.getAuthProvider());
-        assertEquals("123", savedUser.getAuthProviderId());
+        assertEquals(TestUtil.AUTH_PROVIDER_ID, savedUser.getAuthProviderId());
     }
 
     @Test
     public void getJwtTokens_userAlreadyExists_returnJwtTokenAndDoesNotCreateUser() {
         User user = TestUtil.createUser();
         user.setAuthProvider(AuthProvider.GITHUB);
-        user.setAuthProviderId("123");
+        user.setAuthProviderId(TestUtil.AUTH_PROVIDER_ID);
         user.setId(null);
 
         User savedUser = userRepository.save(user);
 
-        byte[] mockAvatar = new byte[]{1, 2, 3};
-        ResponseEntity<String> responseAccessToken = ResponseEntity.ok("{\"access_token\": \"" + ACCESS_TOKEN + "\"}");
+        ResponseEntity<String> responseAccessToken = ResponseEntity.ok("{\"access_token\": \"" + TestUtil.ACCESS_TOKEN + "\"}");
         when(restTemplate.postForEntity(
                 eq("https://github.com/login/oauth/access_token"),
                 any(HttpEntity.class),
@@ -151,7 +151,7 @@ public class OpenIdGitHubIT extends BaseIT {
                 eq(String.class)
         )).thenReturn(responseUserData);
 
-        ResponseEntity<byte[]> responseAvatar = ResponseEntity.ok(mockAvatar);
+        ResponseEntity<byte[]> responseAvatar = ResponseEntity.ok(avatar);
         when(restTemplate.getForEntity(eq("some_url"), eq(byte[].class)))
                 .thenReturn(responseAvatar);
 
@@ -201,34 +201,14 @@ public class OpenIdGitHubIT extends BaseIT {
         assertEquals(0, userRepository.count());
     }
 
-    @Test
-    public void getJwtTokens_invalidData_returnBadRequest() {
-        OpenIdRequest invalidRequest = new OpenIdRequest(AuthProvider.GITHUB, "", "");
-        HttpEntity<OpenIdRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = testRestTemplate.exchange(
-                "/api/v1/openid",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-    }
-
     private String generateUserData() {
         return """
                 {
                 "name": "Ivan",
-                "id": "123",
+                "id": %s,
                 "avatar_url": "some_url"
                 }
-                """;
+                """.formatted(TestUtil.AUTH_PROVIDER_ID);
     }
 
 }

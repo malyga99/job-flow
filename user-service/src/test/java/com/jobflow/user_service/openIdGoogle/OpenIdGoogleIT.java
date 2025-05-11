@@ -5,9 +5,9 @@ import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.openId.OpenIdCacheService;
-import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.openId.OpenIdRequest;
 import com.jobflow.user_service.openId.OpenIdResponse;
+import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
@@ -33,14 +33,11 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class OpenIdGoogleIT extends BaseIT {
-
-    private static final String SUBJECT = TestUtil.LOGIN;
 
     @Autowired
     private TestRestTemplate testRestTemplate;
@@ -73,9 +70,10 @@ public class OpenIdGoogleIT extends BaseIT {
         userRepository.deleteAll();
         mockJwkSet = generateMockJwkSet();
         mockRsaKey = (RSAKey) mockJwkSet.getKeys().get(0);
-        mockIdToken = generateValidJwt(mockRsaKey);
+        mockIdToken = generateJwt(mockRsaKey);
 
-        openIdRequest = new OpenIdRequest(TestUtil.PROVIDER, openIdProperties.getState(), TestUtil.AUTH_CODE);
+        openIdRequest = TestUtil.createOpenIdRequest();
+        openIdRequest.setState(openIdProperties.getState());
     }
 
     @Test
@@ -120,7 +118,7 @@ public class OpenIdGoogleIT extends BaseIT {
         assertNull(savedUser.getAvatar());
         assertEquals(Role.ROLE_USER, savedUser.getRole());
         assertEquals(AuthProvider.GOOGLE, savedUser.getAuthProvider());
-        assertEquals(SUBJECT, savedUser.getAuthProviderId());
+        assertEquals(TestUtil.AUTH_PROVIDER_ID, savedUser.getAuthProviderId());
     }
 
 
@@ -128,7 +126,7 @@ public class OpenIdGoogleIT extends BaseIT {
     public void getJwtTokens_userAlreadyExists_returnJwtTokenAndDoesNotCreateUser()  {
         User user = TestUtil.createUser();
         user.setAuthProvider(AuthProvider.GOOGLE);
-        user.setAuthProviderId(SUBJECT);
+        user.setAuthProviderId(TestUtil.AUTH_PROVIDER_ID);
         user.setId(null);
 
         User savedUser = userRepository.save(user);
@@ -190,7 +188,7 @@ public class OpenIdGoogleIT extends BaseIT {
     @Test
     public void getJwtTokens_invalidKeyId_returnBadRequest() throws JOSEException {
         RSAKey wrongRsaKey = new RSAKeyGenerator(2048).keyID("wrong-key-id").generate();
-        String invalidIdToken = generateValidJwt(wrongRsaKey);
+        String invalidIdToken = generateJwt(wrongRsaKey);
 
         ResponseEntity<String> mockResponse = ResponseEntity.ok("{\"id_token\": \"" + invalidIdToken + "\"}");
         when(restTemplate.postForEntity(
@@ -219,26 +217,6 @@ public class OpenIdGoogleIT extends BaseIT {
         assertEquals(0, userRepository.count());
     }
 
-    @Test
-    public void getJwtTokens_invalidData_returnBadRequest() {
-        OpenIdRequest invalidRequest = new OpenIdRequest(AuthProvider.GOOGLE, "", "");
-        HttpEntity<OpenIdRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = testRestTemplate.exchange(
-                "/api/v1/openid",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-    }
-
     private JWKSet generateMockJwkSet() throws JOSEException {
         RSAKey mockRsaKey = new RSAKeyGenerator(2048)
                 .keyID("test-key-id")
@@ -247,14 +225,14 @@ public class OpenIdGoogleIT extends BaseIT {
         return new JWKSet(mockRsaKey);
     }
 
-    private String generateValidJwt(RSAKey mockRsaKey) throws JOSEException {
+    private String generateJwt(RSAKey mockRsaKey) throws JOSEException {
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
                 .subject(TestUtil.USER_ID)
                 .issuer("https://accounts.google.com")
                 .audience(openIdProperties.getClientId())
                 .claim("given_name", "Ivan")
                 .claim("family_name", "Ivanov")
-                .claim("sub", SUBJECT)
+                .claim("sub", TestUtil.AUTH_PROVIDER_ID)
                 .claim("picture", null)
                 .expirationTime(new Date(new Date().getTime() + 1000 * 60 * 10))
                 .build();

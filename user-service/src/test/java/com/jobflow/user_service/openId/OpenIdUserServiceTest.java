@@ -1,7 +1,6 @@
 package com.jobflow.user_service.openId;
 
 import com.jobflow.user_service.TestUtil;
-import com.jobflow.user_service.exception.OpenIdServiceException;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
@@ -19,8 +18,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
 
-import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class OpenIdUserServiceTest {
@@ -41,7 +40,7 @@ class OpenIdUserServiceTest {
 
     @BeforeEach
     public void setup() {
-        openIdUserInfo = new OpenIdUserInfo("Ivan", "Ivanov", TestUtil.PROVIDER, "123", "avatar-url");
+        openIdUserInfo = TestUtil.createOpenIdUserInfo();
 
         user = TestUtil.createUser();
     }
@@ -87,7 +86,7 @@ class OpenIdUserServiceTest {
     }
 
     @Test
-    public void fetchAvatarFromUrl_urlIsNull_returnAvatar() {
+    public void fetchAvatarFromUrl_returnAvatar() {
         byte[] avatar = new byte[]{1, 2, 3};
         when(restTemplate.getForEntity("test-url", byte[].class)).thenReturn(
                 new ResponseEntity<>(avatar, HttpStatus.OK)

@@ -25,8 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 )
 public class AuthenticationController {
 
-    private final AuthenticationService authenticationService;
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationController.class);
+
+    private final AuthenticationService authenticationService;
 
     @Operation(
             summary = "Authenticate user",
@@ -66,7 +67,7 @@ public class AuthenticationController {
             responses = {
                     @ApiResponse(responseCode = "200", description = "Logout successful",
                             content = @Content(mediaType = "application/json", schema =
-                            @Schema(implementation = AuthenticationResponse.class))),
+                            @Schema(implementation = Void.class))),
 
                     @ApiResponse(responseCode = "400", description = "Validation error",
                             content = @Content(mediaType = "application/json", schema =
@@ -95,7 +96,7 @@ public class AuthenticationController {
             responses = {
                     @ApiResponse(responseCode = "200", description = "Token refresh successful",
                             content = @Content(mediaType = "application/json", schema =
-                            @Schema(implementation = AuthenticationResponse.class))),
+                            @Schema(implementation = String.class))),
 
                     @ApiResponse(responseCode = "400", description = "Validation error",
                             content = @Content(mediaType = "application/json", schema =

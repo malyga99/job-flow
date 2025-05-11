@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 public class GitHubOpenIdStateValidator implements OpenIdStateValidator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GitHubOpenIdStateValidator.class);
+
     private final GitHubOpenIdProperties openIdProperties;
 
     @Override
