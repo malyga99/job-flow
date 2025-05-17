@@ -3,11 +3,13 @@ package com.jobflow.user_service.openId;
 import com.jobflow.user_service.exception.UnsupportedProviderException;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.user.AuthProvider;
+import com.jobflow.user_service.web.IpUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +50,11 @@ public class OpenIdController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = OpenIdResponse.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+
                     @ApiResponse(responseCode = "400", description = "Validation error, unsupported provider or invalid state/ID token",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))
@@ -57,7 +64,8 @@ public class OpenIdController {
     public ResponseEntity<OpenIdResponse> getJwtTokens(
             @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "OpenID request details", required = true
-            ) OpenIdRequest openIdRequest
+            ) OpenIdRequest openIdRequest,
+            HttpServletRequest request
     ) {
         AuthProvider provider = openIdRequest.getProvider();
         LOGGER.info("[POST] OpenID request received for provider: {}", provider);
@@ -67,6 +75,7 @@ public class OpenIdController {
             throw new UnsupportedProviderException("Unsupported provider: " + provider);
         }
 
-        return ResponseEntity.ok(openIdService.getJwtTokens(openIdRequest));
+        String ip = IpUtils.extractClientIp(request);
+        return ResponseEntity.ok(openIdService.getJwtTokens(openIdRequest, ip));
     }
 }

@@ -6,6 +6,7 @@ import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.exception.IdTokenValidationException;
 import com.jobflow.user_service.exception.OpenIdServiceException;
 import com.jobflow.user_service.exception.StateValidationException;
+import com.jobflow.user_service.exception.TooManyRequestsException;
 import com.jobflow.user_service.handler.GlobalHandler;
 import com.jobflow.user_service.user.AuthProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +61,7 @@ class OpenIdControllerTest {
 
     @Test
     public void getJwtTokens_returnOpenIdResponse() throws Exception {
-        when(openIdService.getJwtTokens(openIdRequest)).thenReturn(openIdResponse);
+        when(openIdService.getJwtTokens(eq(openIdRequest), any(String.class))).thenReturn(openIdResponse);
 
         mockMvc.perform(post("/api/v1/openid")
                         .contentType(APPLICATION_JSON)
@@ -70,7 +71,7 @@ class OpenIdControllerTest {
                 .andExpect(jsonPath("$.accessToken").value(openIdResponse.getAccessToken()))
                 .andExpect(jsonPath("$.refreshToken").value(openIdResponse.getRefreshToken()));
 
-        verify(openIdService, times(1)).getJwtTokens(openIdRequest);
+        verify(openIdService, times(1)).getJwtTokens(eq(openIdRequest), any(String.class));
     }
 
     @Test
@@ -87,7 +88,7 @@ class OpenIdControllerTest {
                 .andExpect(jsonPath("$.time").exists())
                 .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
-        verify(openIdService, never()).getJwtTokens(any());
+        verify(openIdService, never()).getJwtTokens(any(OpenIdRequest.class), any(String.class));
     }
 
     @Test
@@ -104,13 +105,13 @@ class OpenIdControllerTest {
                 .andExpect(jsonPath("$.time").exists())
                 .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
-        verify(openIdService, never()).getJwtTokens(any());
+        verify(openIdService, never()).getJwtTokens(any(OpenIdRequest.class), any(String.class));
     }
 
     @Test
     public void getJwtTokens_invalidState_returnBadRequest() throws Exception {
         var stateValidationException = new StateValidationException("Invalid state");
-        when(openIdService.getJwtTokens(openIdRequest)).thenThrow(stateValidationException);
+        when(openIdService.getJwtTokens(eq(openIdRequest), any(String.class))).thenThrow(stateValidationException);
 
         mockMvc.perform(post("/api/v1/openid")
                         .contentType(APPLICATION_JSON)
@@ -121,13 +122,13 @@ class OpenIdControllerTest {
                 .andExpect(jsonPath("$.time").exists())
                 .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
-        verify(openIdService, times(1)).getJwtTokens(openIdRequest);
+        verify(openIdService, times(1)).getJwtTokens(eq(openIdRequest), any(String.class));
     }
 
     @Test
     public void getJwtTokens_invalidIdToken_returnBadRequest() throws Exception {
         var idTokenValidationException = new IdTokenValidationException("Invalid id token");
-        when(openIdService.getJwtTokens(openIdRequest)).thenThrow(idTokenValidationException);
+        when(openIdService.getJwtTokens(eq(openIdRequest), any(String.class))).thenThrow(idTokenValidationException);
 
         mockMvc.perform(post("/api/v1/openid")
                         .contentType(APPLICATION_JSON)
@@ -138,13 +139,13 @@ class OpenIdControllerTest {
                 .andExpect(jsonPath("$.time").exists())
                 .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
-        verify(openIdService, times(1)).getJwtTokens(openIdRequest);
+        verify(openIdService, times(1)).getJwtTokens(eq(openIdRequest), any(String.class));
     }
 
     @Test
     public void getJwtTokens_openIdServiceException_returnInternalServerError() throws Exception {
         var openIdServiceException = new OpenIdServiceException("OpenID service exception");
-        when(openIdService.getJwtTokens(openIdRequest)).thenThrow(openIdServiceException);
+        when(openIdService.getJwtTokens(eq(openIdRequest), any(String.class))).thenThrow(openIdServiceException);
 
         mockMvc.perform(post("/api/v1/openid")
                         .contentType(APPLICATION_JSON)
@@ -155,6 +156,23 @@ class OpenIdControllerTest {
                 .andExpect(jsonPath("$.time").exists())
                 .andExpect(jsonPath("$.status").value(HttpStatus.INTERNAL_SERVER_ERROR.value()));
 
-        verify(openIdService, times(1)).getJwtTokens(openIdRequest);
+        verify(openIdService, times(1)).getJwtTokens(eq(openIdRequest), any(String.class));
+    }
+
+    @Test
+    public void getJwtTokens_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too many OpenID attempts. Try again in a minute");
+        when(openIdService.getJwtTokens(eq(openIdRequest), any(String.class))).thenThrow(tooManyRequestsException);
+
+        mockMvc.perform(post("/api/v1/openid")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(openIdRequestJson))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").value(tooManyRequestsException.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()));
+
+        verify(openIdService, times(1)).getJwtTokens(eq(openIdRequest), any(String.class));
     }
 }
