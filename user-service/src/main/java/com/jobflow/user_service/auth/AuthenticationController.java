@@ -1,11 +1,13 @@
 package com.jobflow.user_service.auth;
 
 import com.jobflow.user_service.handler.ResponseError;
+import com.jobflow.user_service.web.IpUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -37,11 +39,15 @@ public class AuthenticationController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = AuthenticationResponse.class))),
 
+                    @ApiResponse(responseCode = "404", description = "User with this login not found",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "400", description = "Validation error",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
-                    @ApiResponse(responseCode = "404", description = "User with this login not found",
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
@@ -54,11 +60,13 @@ public class AuthenticationController {
     public ResponseEntity<AuthenticationResponse> auth(
             @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Authentication details", required = true
-            ) AuthenticationRequest authenticationRequest
+            ) AuthenticationRequest authenticationRequest,
+            HttpServletRequest request
     ) {
         LOGGER.info("[POST] Authenticate request received for login: {}", authenticationRequest.getLogin());
 
-        return ResponseEntity.ok(authenticationService.auth(authenticationRequest));
+        String ip = IpUtils.extractClientIp(request);
+        return ResponseEntity.ok(authenticationService.auth(authenticationRequest, ip));
     }
 
     @Operation(
@@ -70,6 +78,10 @@ public class AuthenticationController {
                             @Schema(implementation = Void.class))),
 
                     @ApiResponse(responseCode = "400", description = "Validation error",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
@@ -99,6 +111,10 @@ public class AuthenticationController {
                             @Schema(implementation = String.class))),
 
                     @ApiResponse(responseCode = "400", description = "Validation error",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 

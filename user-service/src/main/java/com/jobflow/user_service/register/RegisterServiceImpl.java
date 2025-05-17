@@ -4,6 +4,8 @@ import com.jobflow.user_service.email.EmailVerificationService;
 import com.jobflow.user_service.exception.FileServiceException;
 import com.jobflow.user_service.exception.UserAlreadyExistsException;
 import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.rateLimiter.RateLimiterKeyUtil;
+import com.jobflow.user_service.rateLimiter.RateLimiterService;
 import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
@@ -27,15 +30,30 @@ public class RegisterServiceImpl implements RegisterService {
     private final EmailVerificationService emailVerificationService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RateLimiterService rateLimiterService;
 
     @Override
-    public void register(RegisterRequest registerRequest, MultipartFile avatar) {
+    public void register(RegisterRequest registerRequest, MultipartFile avatar, String clientIp) {
         LOGGER.debug("Starting user registration with login: {}", registerRequest.getLogin());
         registerRequest.setLogin(setLoginLowercase(registerRequest.getLogin()));
 
         if (userRepository.existsByLogin(registerRequest.getLogin())) {
             throw new UserAlreadyExistsException("User with login: " + registerRequest.getLogin() + " already exists");
         }
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateIpKey("register", clientIp),
+                10,
+                Duration.ofHours(1),
+                "Too many register attempts from this IP"
+        );
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("register", registerRequest.getLogin()),
+                5,
+                Duration.ofMinutes(1),
+                "Too many register attempts. Try again in a minute"
+        );
 
         registerRequest.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         registerRequest.setAvatar(getAvatarBytes(avatar));
@@ -48,6 +66,13 @@ public class RegisterServiceImpl implements RegisterService {
     public RegisterResponse confirmCode(ConfirmCodeRequest confirmCodeRequest) {
         LOGGER.debug("Starting confirm code process for user with login: {}", confirmCodeRequest.getLogin());
         confirmCodeRequest.setLogin(setLoginLowercase(confirmCodeRequest.getLogin()));
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("confirmCode", confirmCodeRequest.getLogin()),
+                5,
+                Duration.ofMinutes(1),
+                "Too many incorrect code attempts. Try again in a minute"
+        );
 
         RegisterRequest registerRequest = emailVerificationService.validateVerificationCode(confirmCodeRequest);
 
@@ -72,6 +97,13 @@ public class RegisterServiceImpl implements RegisterService {
     public void resendCode(ResendCodeRequest resendCodeRequest) {
         LOGGER.debug("Starting resend code process for user with login: {}", resendCodeRequest.getLogin());
         resendCodeRequest.setLogin(setLoginLowercase(resendCodeRequest.getLogin()));
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("resendCode", resendCodeRequest.getLogin()),
+                5,
+                Duration.ofMinutes(1),
+                "Too many resend code attempts. Try again in a minute"
+        );
 
         emailVerificationService.resendCode(resendCodeRequest);
         LOGGER.debug("Successfully resent code for user with login: {}", resendCodeRequest.getLogin());

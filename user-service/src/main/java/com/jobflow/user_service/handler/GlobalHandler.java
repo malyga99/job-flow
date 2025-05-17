@@ -32,6 +32,14 @@ public class GlobalHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(responseError);
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ResponseError> tooManyRequestsExcHandler(TooManyRequestsException exc) {
+        LOGGER.error("[Too Many Requests Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.TOO_MANY_REQUESTS.value());
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(responseError);
+    }
+
     @ExceptionHandler(TokenRevokedException.class)
     public ResponseEntity<ResponseError> tokenRevokedExcHandler(TokenRevokedException exc) {
         LOGGER.error("[Token Revoked Exception]: {}", exc.getMessage());

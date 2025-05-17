@@ -26,6 +26,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.util.MultiValueMap;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -71,6 +72,7 @@ public class RegisterIT extends BaseIT {
 
         resendCodeRequest = TestUtil.createResendCodeRequest();
         cleanDb();
+        clearRateLimitKeys();
     }
 
     @Test
@@ -139,6 +141,36 @@ public class RegisterIT extends BaseIT {
         assertNull(redisCodeJson);
         assertNull(redisDataJson);
         verifyNoInteractions(emailService);
+    }
+
+    @Test
+    public void register_tooManyRequests_returnTooManyRequests() {
+        HttpEntity<MultiValueMap<String, Object>> request = TestUtil.createMultipartRequest(
+                Map.of("user", registerRequest)
+        );
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/register",
+                    HttpMethod.POST,
+                    request,
+                    ResponseError.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/register",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many register attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
     }
 
     @Test
@@ -219,6 +251,34 @@ public class RegisterIT extends BaseIT {
     }
 
     @Test
+    public void confirmCode_tooManyRequests_returnTooManyRequests() {
+        HttpEntity<ConfirmCodeRequest> request = TestUtil.createRequest(confirmCodeRequest);
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/register/confirm",
+                    HttpMethod.POST,
+                    request,
+                    ResponseError.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/register/confirm",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many incorrect code attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
     public void resendCode_successfullyResendNewCode() {
         saveDataInRedis(resendCodeRequest.getLogin(), String.valueOf(TestUtil.CODE), registerRequestJson);
 
@@ -263,6 +323,34 @@ public class RegisterIT extends BaseIT {
         assertEquals(HttpStatus.GONE.value(), error.getStatus());
     }
 
+    @Test
+    public void resendCode_tooManyRequests_returnTooManyRequests() {
+        HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(resendCodeRequest);
+        for (int i = 0; i < 5; i ++) {
+            restTemplate.exchange(
+                    "/api/v1/register/resend",
+                    HttpMethod.POST,
+                    request,
+                    Void.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/register/resend",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many resend code attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
     private void saveDataInRedis(String login, String code, String registerRequest) {
         redisTemplate.opsForValue().set("email:verify:" + login, code, 5L, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set("email:data:" + login, registerRequest, 5L, TimeUnit.SECONDS);
@@ -279,5 +367,9 @@ public class RegisterIT extends BaseIT {
         userRepository.deleteAll();
     }
 
+    private void clearRateLimitKeys() {
+        Set<String> keys = redisTemplate.keys("rate_limiter:*");
+        redisTemplate.delete(keys);
+    }
 
 }

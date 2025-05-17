@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Duration;
 import java.util.Date;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -51,6 +52,8 @@ public class AuthenticationIT extends BaseIT {
     @BeforeEach
     public void setup() {
         initDb();
+        clearRateLimitKeys();
+
         savedUser = userRepository.findAll().get(0);
 
         authenticationRequest = TestUtil.createAuthRequest();
@@ -117,6 +120,34 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(error);
         assertEquals("Bad credentials", error.getMessage());
         assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void auth_tooManyRequests_returnTooManyRequests() {
+        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(authenticationRequest);
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/auth",
+                    HttpMethod.POST,
+                    request,
+                    AuthenticationResponse.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many login attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
         assertNotNull(error.getTime());
     }
 
@@ -200,6 +231,42 @@ public class AuthenticationIT extends BaseIT {
     }
 
     @Test
+    public void logout_tooManyRequests_returnTooManyRequests() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = authenticationResponse.getRefreshToken();
+        String accessToken = authenticationResponse.getAccessToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        LogoutRequest logoutRequest = new LogoutRequest(refreshToken);
+        HttpEntity<LogoutRequest> request = TestUtil.createRequest(logoutRequest, headers);
+
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/auth/logout",
+                    HttpMethod.POST,
+                    request,
+                    Void.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/logout",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many logout attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
     public void refresh_returnAccessToken() {
         AuthenticationResponse authenticationResponse = authenticateUser();
         String refreshToken = authenticationResponse.getRefreshToken();
@@ -273,6 +340,39 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(error.getTime());
     }
 
+    @Test
+    public void refresh_tooManyRequests_returnTooManyRequests() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = authenticationResponse.getRefreshToken();
+
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
+        HttpEntity<RefreshTokenRequest> request = TestUtil.createRequest(refreshTokenRequest);
+
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/auth/refresh",
+                    HttpMethod.POST,
+                    request,
+                    Void.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/refresh",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many token refresh attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
     //For JaCoCo code coverage
     @Test
     public void loadUserByUsername_idNotFound_returnNotFound() {
@@ -317,5 +417,10 @@ public class AuthenticationIT extends BaseIT {
         user.setId(null);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
+    }
+
+    private void clearRateLimitKeys() {
+        Set<String> keys = redisTemplate.keys("rate_limiter:*");
+        redisTemplate.delete(keys);
     }
 }

@@ -3,6 +3,8 @@ package com.jobflow.user_service.openIdGithub;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.BaseIT;
 import com.jobflow.user_service.TestUtil;
+import com.jobflow.user_service.auth.AuthenticationRequest;
+import com.jobflow.user_service.auth.AuthenticationResponse;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.openId.OpenIdRequest;

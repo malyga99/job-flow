@@ -5,8 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.exception.OpenIdServiceException;
+import com.jobflow.user_service.exception.TooManyRequestsException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.openId.*;
+import com.jobflow.user_service.rateLimiter.RateLimiterKeyUtil;
+import com.jobflow.user_service.rateLimiter.RateLimiterService;
 import com.jobflow.user_service.user.User;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
@@ -19,6 +22,8 @@ import org.springframework.http.*;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.testcontainers.shaded.org.yaml.snakeyaml.events.Event;
+
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -65,6 +70,9 @@ class GoogleOpenIdServiceTest {
     @Mock
     private JsonNode idTokenNode;
 
+    @Mock
+    private RateLimiterService rateLimiterService;
+
     @Spy
     @InjectMocks
     private GoogleOpenIdService openIdService;
@@ -98,7 +106,7 @@ class GoogleOpenIdServiceTest {
             when(jwtService.generateAccessToken(user)).thenReturn(TestUtil.ACCESS_TOKEN);
             when(jwtService.generateRefreshToken(user)).thenReturn(TestUtil.REFRESH_TOKEN);
 
-            OpenIdResponse result = openIdService.getJwtTokens(openIdRequest);
+            OpenIdResponse result = openIdService.getJwtTokens(openIdRequest, "test-ip");
             assertNotNull(result);
             assertEquals(TestUtil.ACCESS_TOKEN, result.getAccessToken());
             assertEquals(TestUtil.REFRESH_TOKEN, result.getRefreshToken());
@@ -109,6 +117,22 @@ class GoogleOpenIdServiceTest {
             verify(jwtService, times(1)).generateAccessToken(user);
             verify(jwtService, times(1)).generateRefreshToken(user);
         }
+    }
+
+    @Test
+    public void getJwtTokens_tooManyRequests_throwExc() {
+        var tooManyRequestsException = new TooManyRequestsException("Too many OpenID attempts. Try again in a minute");
+        doThrow(tooManyRequestsException).when(rateLimiterService).validateOrThrow(
+                RateLimiterKeyUtil.generateIpKey("googleOpenId", "test-ip"),
+                5,
+                Duration.ofMinutes(1),
+                "Too many OpenID attempts. Try again in a minute"
+        );
+
+        var result = assertThrows(TooManyRequestsException.class, () -> openIdService.getJwtTokens(openIdRequest, "test-ip"));
+        assertEquals(tooManyRequestsException.getMessage(), result.getMessage());
+
+        verifyNoInteractions(jwtService, openIdDataExtractor, openIdUserService);
     }
 
     @Test
@@ -172,7 +196,8 @@ class GoogleOpenIdServiceTest {
 
     @Test
     public void extractToken_readNodeFailed_throwExc() throws JsonProcessingException {
-        JsonProcessingException jsonProcessingException = new JsonProcessingException("Json exception"){};
+        JsonProcessingException jsonProcessingException = new JsonProcessingException("Json exception") {
+        };
         when(objectMapper.readTree(ID_TOKEN)).thenThrow(jsonProcessingException);
 
         var openIdServiceException = assertThrows(OpenIdServiceException.class, () -> openIdService.extractToken(ID_TOKEN));

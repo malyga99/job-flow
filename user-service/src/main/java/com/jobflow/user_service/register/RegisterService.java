@@ -4,7 +4,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface RegisterService {
 
-    void register(RegisterRequest registerRequest, MultipartFile avatar);
+    void register(RegisterRequest registerRequest, MultipartFile avatar, String clientIp);
 
     RegisterResponse confirmCode(ConfirmCodeRequest confirmCodeRequest);
 

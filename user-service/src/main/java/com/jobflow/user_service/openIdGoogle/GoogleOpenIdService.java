@@ -6,11 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.user_service.exception.OpenIdServiceException;
 import com.jobflow.user_service.jwt.JwtService;
 import com.jobflow.user_service.openId.*;
+import com.jobflow.user_service.rateLimiter.RateLimiterKeyUtil;
+import com.jobflow.user_service.rateLimiter.RateLimiterService;
 import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.User;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+
+import java.time.Duration;
 
 @Service
 public class GoogleOpenIdService implements OpenIdService {
@@ -35,6 +38,7 @@ public class GoogleOpenIdService implements OpenIdService {
     private final GoogleOpenIdProperties openIdProperties;
     private final JwtService jwtService;
     private final RestTemplate restTemplate;
+    private final RateLimiterService rateLimiterService;
     private final ObjectMapper objectMapper;
 
     public GoogleOpenIdService(
@@ -45,6 +49,7 @@ public class GoogleOpenIdService implements OpenIdService {
             GoogleOpenIdProperties openIdProperties,
             JwtService jwtService,
             RestTemplate restTemplate,
+            RateLimiterService rateLimiterService,
             ObjectMapper objectMapper) {
         this.openIdStateValidator = openIdStateValidator;
         this.openIdTokenValidator = openIdTokenValidator;
@@ -53,14 +58,22 @@ public class GoogleOpenIdService implements OpenIdService {
         this.openIdProperties = openIdProperties;
         this.jwtService = jwtService;
         this.restTemplate = restTemplate;
+        this.rateLimiterService = rateLimiterService;
         this.objectMapper = objectMapper;
     }
 
     @Override
-    public OpenIdResponse getJwtTokens(OpenIdRequest openIdRequest) {
+    public OpenIdResponse getJwtTokens(OpenIdRequest openIdRequest, String clientIp) {
         LOGGER.info("Starting Google OpenID authentication");
         String state = openIdRequest.getState();
         String authCode = openIdRequest.getAuthCode();
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateIpKey("googleOpenId", clientIp),
+                5,
+                Duration.ofMinutes(1),
+                "Too many OpenID attempts. Try again in a minute"
+        );
 
         openIdStateValidator.validateState(state);
 

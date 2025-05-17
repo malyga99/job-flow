@@ -74,7 +74,7 @@ class RegisterControllerTest {
 
     @Test
     public void register_sendCodeSuccessfully() throws Exception {
-        doNothing().when(registerService).register(registerRequest, null);
+        doNothing().when(registerService).register(eq(registerRequest), eq(null), any(String.class));
 
         mockMvc.perform(multipart("/api/v1/register")
                         .file(userPart)
@@ -83,12 +83,12 @@ class RegisterControllerTest {
                         .content(registerRequestJson))
                 .andExpect(status().isOk());
 
-        verify(registerService, times(1)).register(registerRequest, null);
+        verify(registerService, times(1)).register(eq(registerRequest), eq(null), any(String.class));
     }
 
     @Test
     public void register_withAvatar_sendCodeSuccessfully() throws Exception {
-        doNothing().when(registerService).register(eq(registerRequest), any(MultipartFile.class));
+        doNothing().when(registerService).register(eq(registerRequest), any(MultipartFile.class), any(String.class));
         MockMultipartFile avatarPart = new MockMultipartFile("avatar", "", MediaType.IMAGE_PNG_VALUE, "dummy_file".getBytes());
 
         mockMvc.perform(multipart("/api/v1/register")
@@ -99,7 +99,7 @@ class RegisterControllerTest {
                         .content(registerRequestJson))
                 .andExpect(status().isOk());
 
-        verify(registerService, times(1)).register(eq(registerRequest), any(MultipartFile.class));
+        verify(registerService, times(1)).register(eq(registerRequest), any(MultipartFile.class), any(String.class));
     }
 
     @Test
@@ -124,7 +124,7 @@ class RegisterControllerTest {
     @Test
     public void register_userAlreadyExists_returnConflict() throws Exception {
         var userAlreadyExistsException = new UserAlreadyExistsException("User with login: " + registerRequest.getLogin() + " already exists");
-        doThrow(userAlreadyExistsException).when(registerService).register(registerRequest, null);
+        doThrow(userAlreadyExistsException).when(registerService).register(eq(registerRequest), eq(null), any(String.class));
 
         mockMvc.perform(multipart("/api/v1/register")
                         .file(userPart)
@@ -137,13 +137,13 @@ class RegisterControllerTest {
                 .andExpect(jsonPath("$.time").exists());
 
 
-        verify(registerService, times(1)).register(registerRequest, null);
+        verify(registerService, times(1)).register(eq(registerRequest), eq(null), any(String.class));
     }
 
     @Test
     public void register_emailServiceException_returnInternalServerError() throws Exception {
         var emailServiceException = new EmailServiceException("Email service exception");
-        doThrow(emailServiceException).when(registerService).register(registerRequest, null);
+        doThrow(emailServiceException).when(registerService).register(eq(registerRequest), eq(null), any(String.class));
 
         mockMvc.perform(multipart("/api/v1/register")
                         .file(userPart)
@@ -156,13 +156,13 @@ class RegisterControllerTest {
                 .andExpect(jsonPath("$.time").exists());
 
 
-        verify(registerService, times(1)).register(registerRequest, null);
+        verify(registerService, times(1)).register(eq(registerRequest), eq(null), any(String.class));
     }
 
     @Test
     public void register_fileServiceException_returnInternalServerError() throws Exception {
         var fileServiceException = new FileServiceException("File service exception");
-        doThrow(fileServiceException).when(registerService).register(registerRequest, null);
+        doThrow(fileServiceException).when(registerService).register(eq(registerRequest), eq(null), any(String.class));
 
         mockMvc.perform(multipart("/api/v1/register")
                         .file(userPart)
@@ -175,7 +175,26 @@ class RegisterControllerTest {
                 .andExpect(jsonPath("$.time").exists());
 
 
-        verify(registerService, times(1)).register(registerRequest, null);
+        verify(registerService, times(1)).register(eq(registerRequest), eq(null), any(String.class));
+    }
+
+    @Test
+    public void register_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too many register attempts. Try again in a minute");
+        doThrow(tooManyRequestsException).when(registerService).register(eq(registerRequest), eq(null), any(String.class));
+
+        mockMvc.perform(multipart("/api/v1/register")
+                        .file(userPart)
+                        .contentType(MULTIPART_FORM_DATA)
+                        .accept(APPLICATION_JSON)
+                        .content(registerRequestJson))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").value(tooManyRequestsException.getMessage()))
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()))
+                .andExpect(jsonPath("$.time").exists());
+
+
+        verify(registerService, times(1)).register(eq(registerRequest), eq(null), any(String.class));
     }
 
     @Test
@@ -221,6 +240,24 @@ class RegisterControllerTest {
                 .andExpect(jsonPath("$.message").value(verificationCodeExpiredException.getMessage()))
                 .andExpect(jsonPath("$.status").value(HttpStatus.GONE.value()))
                 .andExpect(jsonPath("$.time").exists());
+
+        verify(registerService, times(1)).resendCode(resendCodeRequest);
+    }
+
+    @Test
+    public void resendCode_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too many resend code attempts. Try again in a minute");
+        doThrow(tooManyRequestsException).when(registerService).resendCode(resendCodeRequest);
+
+        mockMvc.perform(multipart("/api/v1/register/resend")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(resendCodeRequestJson))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").value(tooManyRequestsException.getMessage()))
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()))
+                .andExpect(jsonPath("$.time").exists());
+
 
         verify(registerService, times(1)).resendCode(resendCodeRequest);
     }
@@ -286,6 +323,23 @@ class RegisterControllerTest {
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.message").value(verificationCodeExpiredException.getMessage()))
                 .andExpect(jsonPath("$.status").value(HttpStatus.GONE.value()))
+                .andExpect(jsonPath("$.time").exists());
+
+        verify(registerService, times(1)).confirmCode(confirmCodeRequest);
+    }
+
+    @Test
+    public void confirmCode_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too incorrect code attempts. Try again in a minute");
+        when(registerService.confirmCode(confirmCodeRequest)).thenThrow(tooManyRequestsException);
+
+        mockMvc.perform(post("/api/v1/register/confirm")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(confirmCodeRequestJson))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").value(tooManyRequestsException.getMessage()))
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()))
                 .andExpect(jsonPath("$.time").exists());
 
         verify(registerService, times(1)).confirmCode(confirmCodeRequest);
