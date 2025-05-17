@@ -1,8 +1,11 @@
 package com.jobflow.user_service.auth;
 
 import com.jobflow.user_service.exception.TokenRevokedException;
+import com.jobflow.user_service.exception.TooManyRequestsException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.rateLimiter.RateLimiterKeyUtil;
+import com.jobflow.user_service.rateLimiter.RateLimiterService;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
 import com.jobflow.user_service.user.UserService;
@@ -30,17 +33,26 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final RedisTemplate<String, String> redisTemplate;
     private final UserService userService;
     private final UserRepository userRepository;
+    private final RateLimiterService rateLimiterService;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Override
-    public AuthenticationResponse auth(AuthenticationRequest authenticationRequest) {
+    public AuthenticationResponse auth(AuthenticationRequest authenticationRequest, String clientIp) {
         LOGGER.debug("Starting user authentication with login: {}", authenticationRequest.getLogin());
+
         authenticationRequest.setLogin(authenticationRequest.getLogin().toLowerCase());
 
         User userFromDb = userRepository.findByLogin(authenticationRequest.getLogin())
                 .orElseThrow(() -> new UserNotFoundException("User with login: " + authenticationRequest.getLogin() + " not found"));
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateIpKey("auth", authenticationRequest.getLogin(), clientIp),
+                5,
+                Duration.ofMinutes(1),
+                "Too many login attempts. Try again in a minute"
+        );
 
         Authentication authenticate = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                 userFromDb.getId(),
@@ -63,6 +75,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         String refreshToken = logoutRequest.getRefreshToken();
         Claims claims = jwtService.extractClaims(refreshToken);
+
+        String userId = claims.getSubject();
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("logout", userId),
+                5,
+                Duration.ofMinutes(1),
+                "Too many logout attempts. Try again in a minute"
+        );
 
         Date expiration = claims.getExpiration();
         String tokenId = claims.getId();
@@ -88,6 +109,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         validateIsTokenRevoked(tokenId);
 
         String userId = claims.getSubject();
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("refresh", userId),
+                5,
+                Duration.ofMinutes(1),
+                "Too many token refresh attempts. Try again in a minute"
+        );
+
         User user = userRepository.findById(Long.valueOf(userId))
                         .orElseThrow(() -> new UserNotFoundException("User with id: " + userId + " not found"));
 

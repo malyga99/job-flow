@@ -1,12 +1,14 @@
 package com.jobflow.user_service.register;
 
 import com.jobflow.user_service.handler.ResponseError;
+import com.jobflow.user_service.web.IpUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -39,6 +41,10 @@ public class RegisterController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "409", description = "User with this login already exists",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))
@@ -47,11 +53,13 @@ public class RegisterController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> register(
             @RequestPart(value = "user") @Valid @Parameter(description = "User registration details", required = true) RegisterRequest registerRequest,
-            @RequestPart(value = "avatar", required = false) @Parameter(description = "User avatar", required = false) MultipartFile avatar
+            @RequestPart(value = "avatar", required = false) @Parameter(description = "User avatar", required = false) MultipartFile avatar,
+            HttpServletRequest request
     ) {
         LOGGER.info("[POST] Register request received for login: {}", registerRequest.getLogin());
 
-        registerService.register(registerRequest, avatar);
+        String ip = IpUtils.extractClientIp(request);
+        registerService.register(registerRequest, avatar, ip);
         return ResponseEntity.ok().build();
     }
 
@@ -64,6 +72,10 @@ public class RegisterController {
                             @Schema(implementation = RegisterResponse.class))),
 
                     @ApiResponse(responseCode = "400", description = "Validation error",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
@@ -93,6 +105,10 @@ public class RegisterController {
                             @Schema(implementation = RegisterResponse.class))),
 
                     @ApiResponse(responseCode = "400", description = "Validation error or invalid verification code",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 

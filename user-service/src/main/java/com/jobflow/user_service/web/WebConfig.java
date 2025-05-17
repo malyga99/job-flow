@@ -1,4 +1,4 @@
-package com.jobflow.user_service.webConfig;
+package com.jobflow.user_service.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
