@@ -19,7 +19,7 @@ public interface JwtService {
 
     Claims extractClaims(String token);
 
-    String extractLogin(String token);
+    String extractUserId(String token);
 
     Date extractExpiration(String token);
 

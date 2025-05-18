@@ -1,5 +1,6 @@
 package com.jobflow.user_service.email;
 
+import com.jobflow.user_service.TestUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -17,7 +18,6 @@ class EmailServiceImplTest {
 
     private static final String EMAIL_SENDER = "SenderUsername@gmail.com";
     private static final String EMAIL_RECIPIENT = "IvanIvanov@gmail.com";
-    private static final int code = 111111;
 
     @Mock
     private JavaMailSender javaMailSender;
@@ -33,7 +33,7 @@ class EmailServiceImplTest {
         ArgumentCaptor<SimpleMailMessage> argumentCaptor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         when(emailProperties.getUsername()).thenReturn(EMAIL_SENDER);
 
-        emailService.sendCodeToEmail(EMAIL_RECIPIENT, code);
+        emailService.sendCodeToEmail(EMAIL_RECIPIENT, TestUtil.CODE);
 
         verify(javaMailSender, times(1)).send(argumentCaptor.capture());
 
@@ -42,7 +42,7 @@ class EmailServiceImplTest {
         assertEquals(EMAIL_SENDER, simpleMailMessage.getFrom());
         assertEquals("Registration confirmation code", simpleMailMessage.getSubject());
         String text = simpleMailMessage.getText();
-        assertTrue(text.contains("Hi!") && text.contains("Your confirmation code") && text.contains("JobFlow team") && text.contains(String.valueOf(code)));
+        assertTrue(text.contains("Hi!") && text.contains("Your confirmation code") && text.contains("JobFlow team") && text.contains(String.valueOf(TestUtil.CODE)));
     }
 
 }

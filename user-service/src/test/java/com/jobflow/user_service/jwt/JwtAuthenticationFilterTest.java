@@ -1,7 +1,6 @@
 package com.jobflow.user_service.jwt;
 
-import com.jobflow.user_service.user.Role;
-import com.jobflow.user_service.user.User;
+import com.jobflow.user_service.TestUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,8 +19,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.io.IOException;
 
-import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
@@ -46,13 +45,11 @@ class JwtAuthenticationFilterTest {
     @InjectMocks
     private JwtAuthenticationFilter authenticationFilter;
 
-    private static final String JWT_TOKEN = "my.jwt.token";
-    private static final String LOGIN = "IvanIvanov@gmail.com";
-
     @BeforeEach
     public void setup() {
         SecurityContextHolder.clearContext();
-        userDetails = new User(1L, "Ivan", "Ivanov", "IvanIvanov@gmail.com", "abcde", Role.ROLE_USER);
+
+        userDetails = TestUtil.createUser();
     }
 
     @Test
@@ -68,7 +65,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     public void doFilterInternal_notJwtTokenInHeader_skipFilter() throws ServletException, IOException {
-        when(request.getHeader("Authorization")).thenReturn("Notbearer " + JWT_TOKEN);
+        when(request.getHeader("Authorization")).thenReturn("Notbearer " + TestUtil.ACCESS_TOKEN);
 
         authenticationFilter.doFilterInternal(request, response, filterChain);
 
@@ -78,9 +75,9 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    public void doFilterInternal_loginIsNull_skipFilter() throws ServletException, IOException {
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + JWT_TOKEN);
-        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(null);
+    public void doFilterInternal_userIdIsNull_skipFilter() throws ServletException, IOException {
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + TestUtil.ACCESS_TOKEN);
+        when(jwtService.extractUserId(TestUtil.ACCESS_TOKEN)).thenReturn(null);
 
         authenticationFilter.doFilterInternal(request, response, filterChain);
 
@@ -91,8 +88,8 @@ class JwtAuthenticationFilterTest {
 
     @Test
     public void doFilterInternal_userAlreadyAuthenticated_skipFilter() throws ServletException, IOException {
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + JWT_TOKEN);
-        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(LOGIN);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + TestUtil.ACCESS_TOKEN);
+        when(jwtService.extractUserId(TestUtil.ACCESS_TOKEN)).thenReturn(TestUtil.USER_ID);
         Authentication authentication = mock(Authentication.class);
         SecurityContext securityContext = mock(SecurityContext.class);
         SecurityContextHolder.setContext(securityContext);
@@ -107,10 +104,10 @@ class JwtAuthenticationFilterTest {
 
     @Test
     public void doFilterInternal_tokenNotValid_skipFilter() throws ServletException, IOException {
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + JWT_TOKEN);
-        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(LOGIN);
-        when(userDetailsService.loadUserByUsername(LOGIN)).thenReturn(userDetails);
-        when(jwtService.isValid(userDetails, JWT_TOKEN)).thenReturn(false);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + TestUtil.ACCESS_TOKEN);
+        when(jwtService.extractUserId(TestUtil.ACCESS_TOKEN)).thenReturn(TestUtil.USER_ID);
+        when(userDetailsService.loadUserByUsername(TestUtil.USER_ID)).thenReturn(userDetails);
+        when(jwtService.isValid(userDetails, TestUtil.ACCESS_TOKEN)).thenReturn(false);
 
         authenticationFilter.doFilterInternal(request, response, filterChain);
 
@@ -120,15 +117,15 @@ class JwtAuthenticationFilterTest {
 
     @Test
     public void doFilterInternal_tokenIsValid_setAuthentication() throws ServletException, IOException {
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + JWT_TOKEN);
-        when(jwtService.extractLogin(JWT_TOKEN)).thenReturn(LOGIN);
-        when(userDetailsService.loadUserByUsername(LOGIN)).thenReturn(userDetails);
-        when(jwtService.isValid(userDetails, JWT_TOKEN)).thenReturn(true);
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + TestUtil.ACCESS_TOKEN);
+        when(jwtService.extractUserId(TestUtil.ACCESS_TOKEN)).thenReturn(TestUtil.USER_ID);
+        when(userDetailsService.loadUserByUsername(TestUtil.USER_ID)).thenReturn(userDetails);
+        when(jwtService.isValid(userDetails, TestUtil.ACCESS_TOKEN)).thenReturn(true);
 
         authenticationFilter.doFilterInternal(request, response, filterChain);
 
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-        assertEquals(SecurityContextHolder.getContext().getAuthentication().getName(), LOGIN);
+        assertEquals(SecurityContextHolder.getContext().getAuthentication().getName(), TestUtil.USER_ID);
         verify(filterChain, times(1)).doFilter(request, response);
     }
 

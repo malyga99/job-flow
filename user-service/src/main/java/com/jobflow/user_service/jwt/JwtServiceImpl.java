@@ -20,10 +20,11 @@ import java.util.UUID;
 @Service
 public class JwtServiceImpl implements JwtService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(JwtServiceImpl.class);
+
     private final String SECRET_KEY;
     private final long ACCESS_EXPIRATION_TIME;
     private final long REFRESH_EXPIRATION_TIME;
-    private static final Logger LOGGER = LoggerFactory.getLogger(JwtServiceImpl.class);
 
     public JwtServiceImpl(@Value("${jwt.secret-key}") String SECRET_KEY,
                           @Value("${jwt.access-expiration-time}") long ACCESS_EXPIRATION_TIME,
@@ -35,8 +36,9 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public String generateAccessToken(Map<String, Object> claims, UserDetails user) {
-        LOGGER.debug("Generating access token for user: {}", user.getUsername());
+        LOGGER.debug("Generating access token for userId: {}", user.getUsername());
         String tokenId = UUID.randomUUID().toString();
+
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(user.getUsername())
@@ -49,8 +51,9 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public String generateRefreshToken(Map<String, Object> claims, UserDetails user) {
-        LOGGER.debug("Generating refresh token for user: {}", user.getUsername());
+        LOGGER.debug("Generating refresh token for userId: {}", user.getUsername());
         String tokenId = UUID.randomUUID().toString();
+
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(user.getUsername())
@@ -78,12 +81,13 @@ public class JwtServiceImpl implements JwtService {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        LOGGER.debug("Extracted claims from token. Subject: {}", claims.getSubject());
+
+        LOGGER.debug("Extracted claims from token for userId: {}", claims.getSubject());
         return claims;
     }
 
     @Override
-    public String extractLogin(String token) {
+    public String extractUserId(String token) {
         return extractClaims(token).getSubject();
     }
 
@@ -94,15 +98,16 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public boolean isValid(UserDetails user, String token) {
-        boolean matchesUser = extractLogin(token).equals(user.getUsername());
+        boolean matchesUserId = extractUserId(token).equals(user.getUsername());
 
-        LOGGER.debug("Validated token by user: {}. matchesUser: {}", user.getUsername(), matchesUser);
-        return matchesUser;
+        LOGGER.debug("Validated token by userId: {}. matchesUserId: {}", user.getUsername(), matchesUserId);
+        return matchesUserId;
     }
 
     @Override
     public Key getSecretKey() {
         byte[] decodeKey = Decoders.BASE64.decode(SECRET_KEY);
+
         return Keys.hmacShaKeyFor(decodeKey);
     }
 }

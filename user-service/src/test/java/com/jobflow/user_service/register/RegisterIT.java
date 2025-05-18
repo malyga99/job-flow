@@ -7,6 +7,7 @@ import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.email.EmailService;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.user.AuthProvider;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -21,18 +23,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.util.MultiValueMap;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class RegisterIT extends BaseIT {
-
-    private static final String LOGIN = "ivanivanov@gmail.com";
-    private static final String VERIFY_KEY = "email:verify:%s";
-    private static final String DATA_KEY = "email:data:%s";
-    private static final String CODE = "111111";
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -65,16 +65,28 @@ public class RegisterIT extends BaseIT {
 
     @BeforeEach
     public void setup() throws JsonProcessingException {
-        registerRequest = new RegisterRequest("Ivan", "Ivanov", LOGIN, "abcde");
+        registerRequest = TestUtil.createRegisterRequest();
         registerRequestJson = objectMapper.writeValueAsString(registerRequest);
-        confirmCodeRequest = new ConfirmCodeRequest(LOGIN, Integer.parseInt(CODE));
-        resendCodeRequest = new ResendCodeRequest(LOGIN);
+
+        confirmCodeRequest = TestUtil.createConfirmCodeRequest();
+
+        resendCodeRequest = TestUtil.createResendCodeRequest();
         cleanDb();
+        clearRateLimitKeys();
     }
 
     @Test
     public void register_successfullySentCodeAndSaveInRedis() throws JsonProcessingException {
-        HttpEntity<RegisterRequest> request = TestUtil.createRequest(registerRequest);
+        HttpEntity<MultiValueMap<String, Object>> request = TestUtil.createMultipartRequest(
+                Map.of(
+                        "user", registerRequest,
+                        "avatar", new ByteArrayResource("dummy".getBytes()) {
+                            @Override
+                            public String getFilename() {
+                                return "avatar.png";
+                            }
+                        })
+        );
         ResponseEntity<Void> response = restTemplate.exchange(
                 "/api/v1/register",
                 HttpMethod.POST,
@@ -84,8 +96,8 @@ public class RegisterIT extends BaseIT {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
 
-        String redisCodeJson = redisTemplate.opsForValue().get(String.format(VERIFY_KEY, registerRequest.getLogin()));
-        String redisDataJson = redisTemplate.opsForValue().get(String.format(DATA_KEY, registerRequest.getLogin()));
+        String redisCodeJson = redisTemplate.opsForValue().get("email:verify:" + registerRequest.getLogin());
+        String redisDataJson = redisTemplate.opsForValue().get("email:data:" + registerRequest.getLogin());
         assertNotNull(redisCodeJson);
         assertNotNull(redisDataJson);
 
@@ -94,6 +106,7 @@ public class RegisterIT extends BaseIT {
         assertEquals(registerRequest.getLastname(), savedRequest.getLastname());
         assertEquals(registerRequest.getLogin(), savedRequest.getLogin());
         assertTrue(passwordEncoder.matches("abcde", savedRequest.getPassword()));
+        assertNotNull(savedRequest.getAvatar());
 
         int code = Integer.parseInt(redisCodeJson);
         assertTrue(code >= 100_000 && code <= 999_999, "Verification code must be 6 digits");
@@ -102,30 +115,12 @@ public class RegisterIT extends BaseIT {
     }
 
     @Test
-    public void register_invalidData_returnBadRequest() {
-        RegisterRequest invalidRequest = new RegisterRequest("", "", "", "");
-        HttpEntity<RegisterRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/register",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-    }
-
-    @Test
     public void register_userAlreadyExists_returnBadRequest() {
         initDb();
 
-        HttpEntity<RegisterRequest> request = TestUtil.createRequest(registerRequest);
+        HttpEntity<MultiValueMap<String, Object>> request = TestUtil.createMultipartRequest(
+                Map.of("user", registerRequest)
+        );
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/register",
                 HttpMethod.POST,
@@ -141,16 +136,46 @@ public class RegisterIT extends BaseIT {
         assertNotNull(error.getTime());
         assertEquals(HttpStatus.CONFLICT.value(), error.getStatus());
 
-        String redisCodeJson = redisTemplate.opsForValue().get("email:verify:" + registerRequest.getLogin());
-        String redisDataJson = redisTemplate.opsForValue().get("email:data:" + registerRequest.getLogin());
+        String redisCodeJson = redisTemplate.opsForValue().get("email:verify::" + registerRequest.getLogin());
+        String redisDataJson = redisTemplate.opsForValue().get("email:data::" + registerRequest.getLogin());
         assertNull(redisCodeJson);
         assertNull(redisDataJson);
         verifyNoInteractions(emailService);
     }
 
     @Test
+    public void register_tooManyRequests_returnTooManyRequests() {
+        HttpEntity<MultiValueMap<String, Object>> request = TestUtil.createMultipartRequest(
+                Map.of("user", registerRequest)
+        );
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/register",
+                    HttpMethod.POST,
+                    request,
+                    ResponseError.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/register",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many register attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
     public void confirmCode_successfullyConfirmCodeAndSaveUser() {
-        saveDataInRedis(registerRequest.getLogin(), CODE, registerRequestJson);
+        saveDataInRedis(registerRequest.getLogin(), String.valueOf(confirmCodeRequest.getCode()), registerRequestJson);
 
         HttpEntity<ConfirmCodeRequest> request = TestUtil.createRequest(confirmCodeRequest);
         ResponseEntity<RegisterResponse> response = restTemplate.exchange(
@@ -167,21 +192,22 @@ public class RegisterIT extends BaseIT {
         assertNotNull(responseBody.getAccessToken());
         assertNotNull(responseBody.getRefreshToken());
 
-        String loginAccessToken = jwtService.extractLogin(responseBody.getAccessToken());
-        String loginRefreshToken = jwtService.extractLogin(responseBody.getRefreshToken());
-        assertEquals(LOGIN, loginAccessToken);
-        assertEquals(LOGIN, loginRefreshToken);
-
-        assertNull(redisTemplate.opsForValue().get(String.format(VERIFY_KEY, registerRequest.getLogin())));
-        assertNull(redisTemplate.opsForValue().get(String.format(DATA_KEY, registerRequest.getLogin())));
-
-        User savedUser = userRepository.findByLogin(LOGIN).get();
+        User savedUser = userRepository.findByLogin(confirmCodeRequest.getLogin()).get();
         assertNotNull(savedUser);
+        String userIdAccessToken = jwtService.extractUserId(responseBody.getAccessToken());
+        String userIdRefreshToken = jwtService.extractUserId(responseBody.getRefreshToken());
+        assertEquals(savedUser.getId(), Long.valueOf(userIdAccessToken));
+        assertEquals(savedUser.getId(), Long.valueOf(userIdRefreshToken));
+
+        assertNull(redisTemplate.opsForValue().get("email:verify:" + confirmCodeRequest.getLogin()));
+        assertNull(redisTemplate.opsForValue().get("email:data:" + confirmCodeRequest.getLogin()));
+
         assertEquals(registerRequest.getFirstname(), savedUser.getFirstname());
         assertEquals(registerRequest.getLastname(), savedUser.getLastname());
         assertEquals(registerRequest.getLogin(), savedUser.getLogin());
         assertEquals(registerRequest.getPassword(), savedUser.getPassword());
         assertEquals(Role.ROLE_USER, savedUser.getRole());
+        assertEquals(AuthProvider.LOCAL, savedUser.getAuthProvider());
     }
 
     @Test
@@ -199,29 +225,8 @@ public class RegisterIT extends BaseIT {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 
         ResponseError error = response.getBody();
-        assertEquals("Verification code: " + CODE + " invalid for user: " + LOGIN, error.getMessage());
+        assertEquals("Verification code: " + confirmCodeRequest.getCode() + " invalid for user: " + confirmCodeRequest.getLogin(), error.getMessage());
         assertNotNull(error);
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-
-    }
-
-    @Test
-    public void confirmCode_invalidData_returnBadRequest() {
-        ConfirmCodeRequest invalidRequest = new ConfirmCodeRequest("", 0);
-        HttpEntity<ConfirmCodeRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/register/confirm",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
         assertNotNull(error.getTime());
         assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
     }
@@ -239,15 +244,43 @@ public class RegisterIT extends BaseIT {
         assertEquals(HttpStatus.GONE, response.getStatusCode());
 
         ResponseError error = response.getBody();
-        assertEquals("Verification code expired for user with login: " + LOGIN, error.getMessage());
+        assertEquals("Verification code expired for user with login: " + confirmCodeRequest.getLogin(), error.getMessage());
         assertNotNull(error);
         assertNotNull(error.getTime());
         assertEquals(HttpStatus.GONE.value(), error.getStatus());
     }
 
     @Test
+    public void confirmCode_tooManyRequests_returnTooManyRequests() {
+        HttpEntity<ConfirmCodeRequest> request = TestUtil.createRequest(confirmCodeRequest);
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/register/confirm",
+                    HttpMethod.POST,
+                    request,
+                    ResponseError.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/register/confirm",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many incorrect code attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
     public void resendCode_successfullyResendNewCode() {
-        saveDataInRedis(registerRequest.getLogin(), "111111", registerRequestJson);
+        saveDataInRedis(resendCodeRequest.getLogin(), String.valueOf(TestUtil.CODE), registerRequestJson);
 
         HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(resendCodeRequest);
         ResponseEntity<Void> response = restTemplate.exchange(
@@ -259,36 +292,16 @@ public class RegisterIT extends BaseIT {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
 
-        String redisCodeJson = redisTemplate.opsForValue().get(String.format(VERIFY_KEY, registerRequest.getLogin()));
-        String redisDataJson = redisTemplate.opsForValue().get(String.format(DATA_KEY, registerRequest.getLogin()));
+        String redisCodeJson = redisTemplate.opsForValue().get("email:verify:" + resendCodeRequest.getLogin());
+        String redisDataJson = redisTemplate.opsForValue().get("email:data:" + resendCodeRequest.getLogin());
         assertNotNull(redisCodeJson);
         assertNotNull(redisDataJson);
 
         int code = Integer.parseInt(redisCodeJson);
-        assertTrue(code != 111111);
+        assertTrue(code != TestUtil.CODE);
         assertTrue(code >= 100_000 && code <= 999_999, "Verification code must be 6 digits");
 
         verify(emailService, times(1)).sendCodeToEmail(eq(registerRequest.getLogin()), anyInt());
-    }
-
-    @Test
-    public void resendCode_invalidData_returnBadRequest() {
-        ResendCodeRequest invalidRequest = new ResendCodeRequest("");
-        HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/register/resend",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
     }
 
     @Test
@@ -304,19 +317,49 @@ public class RegisterIT extends BaseIT {
         assertEquals(HttpStatus.GONE, response.getStatusCode());
 
         ResponseError error = response.getBody();
-        assertEquals("Verification code expired for user with login: " + LOGIN, error.getMessage());
+        assertEquals("Verification code expired for user with login: " + resendCodeRequest.getLogin(), error.getMessage());
         assertNotNull(error);
         assertNotNull(error.getTime());
         assertEquals(HttpStatus.GONE.value(), error.getStatus());
     }
 
+    @Test
+    public void resendCode_tooManyRequests_returnTooManyRequests() {
+        HttpEntity<ResendCodeRequest> request = TestUtil.createRequest(resendCodeRequest);
+        for (int i = 0; i < 5; i ++) {
+            restTemplate.exchange(
+                    "/api/v1/register/resend",
+                    HttpMethod.POST,
+                    request,
+                    Void.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/register/resend",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many resend code attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
     private void saveDataInRedis(String login, String code, String registerRequest) {
-        redisTemplate.opsForValue().set(String.format(VERIFY_KEY, login), code, 5L, TimeUnit.SECONDS);
-        redisTemplate.opsForValue().set(String.format(DATA_KEY, login), registerRequest, 5L, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("email:verify:" + login, code, 5L, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("email:data:" + login, registerRequest, 5L, TimeUnit.SECONDS);
     }
 
     private void initDb() {
-        User user = new User(null, "Ivan", "Ivanov", LOGIN, passwordEncoder.encode("abcde"), Role.ROLE_USER);
+        User user = TestUtil.createUser();
+        user.setId(null);
+
         userRepository.save(user);
     }
 
@@ -324,5 +367,9 @@ public class RegisterIT extends BaseIT {
         userRepository.deleteAll();
     }
 
+    private void clearRateLimitKeys() {
+        Set<String> keys = redisTemplate.keys("rate_limiter:*");
+        redisTemplate.delete(keys);
+    }
 
 }

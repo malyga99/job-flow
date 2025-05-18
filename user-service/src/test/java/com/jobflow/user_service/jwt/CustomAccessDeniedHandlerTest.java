@@ -1,11 +1,13 @@
 package com.jobflow.user_service.jwt;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.handler.ResponseError;
+import com.jobflow.user_service.user.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -20,7 +22,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -45,10 +48,24 @@ class CustomAccessDeniedHandlerTest {
     @InjectMocks
     private CustomAccessDeniedHandler accessDeniedHandler;
 
+    private User user;
+
+    private String errorMessage;
+
+    private String expectedJson;
+
+    @BeforeEach
+    public void setup() {
+        SecurityContextHolder.clearContext();
+
+        user = TestUtil.createUser();
+
+        errorMessage = "Access denied";
+        expectedJson = "{\"message\": \"Access denied\", \"status\": 403, \"time\": 2025-01-01 01:01}";
+    }
+
     @Test
     public void handle_returnAuthorizationException() throws IOException, ServletException {
-        String errorMessage = "Access denied";
-        String expectedJson = "{\"message\": \"Access denied\", \"status\": 403, \"time\": 2025-01-01 01:01}";
         ArgumentCaptor<ResponseError> argumentCaptor = ArgumentCaptor.forClass(ResponseError.class);
 
         when(accessDeniedException.getMessage()).thenReturn(errorMessage);
@@ -71,11 +88,8 @@ class CustomAccessDeniedHandlerTest {
 
     @Test
     public void handle_withAuthenticatedUser_returnAuthorizationException() throws IOException, ServletException {
-        String errorMessage = "Access denied";
-        String expectedJson = "{\"message\": \"Access denied\", \"status\": 403, \"time\": 2025-01-01 01:01}";
-
         Authentication authentication = mock(Authentication.class);
-        when(authentication.getName()).thenReturn("mockUser");
+        when(authentication.getName()).thenReturn("1");
 
         SecurityContext context = mock(SecurityContext.class);
         SecurityContextHolder.setContext(context);

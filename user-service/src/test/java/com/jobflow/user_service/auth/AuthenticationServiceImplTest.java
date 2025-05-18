@@ -1,9 +1,12 @@
 package com.jobflow.user_service.auth;
 
+import com.jobflow.user_service.TestUtil;
 import com.jobflow.user_service.exception.TokenRevokedException;
+import com.jobflow.user_service.exception.TooManyRequestsException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
-import com.jobflow.user_service.user.Role;
+import com.jobflow.user_service.rateLimiter.RateLimiterKeyUtil;
+import com.jobflow.user_service.rateLimiter.RateLimiterService;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
 import com.jobflow.user_service.user.UserService;
@@ -22,6 +25,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
@@ -32,6 +36,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AuthenticationServiceImplTest {
+
+    private static final String TOKEN_ID = "token_id";
 
     @Mock
     private JwtService jwtService;
@@ -57,6 +63,9 @@ class AuthenticationServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private RateLimiterService rateLimiterService;
+
     @InjectMocks
     private AuthenticationServiceImpl authenticationService;
 
@@ -70,84 +79,98 @@ class AuthenticationServiceImplTest {
 
     private UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken;
 
-    private static final String ACCESS_TOKEN = "my.access.token";
-
-    private static final String REFRESH_TOKEN = "my.refresh.token";
 
     @BeforeEach
     public void setup() {
-        authenticationRequest = new AuthenticationRequest("IvanIvanov@gmail.com", "abcde");
-        logoutRequest = new LogoutRequest(REFRESH_TOKEN);
-        refreshTokenRequest = new RefreshTokenRequest(REFRESH_TOKEN);
+        authenticationRequest = TestUtil.createAuthRequest();
+
+        logoutRequest = TestUtil.createLogoutRequest();
+
+        refreshTokenRequest = TestUtil.createRefreshRequest();
+
+        user = TestUtil.createUser();
+
         usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                authenticationRequest.getLogin().toLowerCase(),
+                user.getId(),
                 authenticationRequest.getPassword()
         );
-        user = new User(1L, "Ivan", "Ivanov", authenticationRequest.getLogin(), authenticationRequest.getPassword(), Role.ROLE_USER);
     }
 
     @Test
     public void auth_returnAuthResponse() {
+        when(userRepository.findByLogin(authenticationRequest.getLogin())).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(usernamePasswordAuthenticationToken)).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(user);
-        when(jwtService.generateAccessToken(user)).thenReturn(ACCESS_TOKEN);
-        when(jwtService.generateRefreshToken(user)).thenReturn(REFRESH_TOKEN);
+        when(jwtService.generateAccessToken(user)).thenReturn(TestUtil.ACCESS_TOKEN);
+        when(jwtService.generateRefreshToken(user)).thenReturn(TestUtil.REFRESH_TOKEN);
 
-        AuthenticationResponse result = authenticationService.auth(authenticationRequest);
+        AuthenticationResponse result = authenticationService.auth(authenticationRequest, "test-ip");
 
         assertNotNull(result);
-        assertEquals(ACCESS_TOKEN, result.getAccessToken());
-        assertEquals(REFRESH_TOKEN, result.getRefreshToken());
+        assertEquals(TestUtil.ACCESS_TOKEN, result.getAccessToken());
+        assertEquals(TestUtil.REFRESH_TOKEN, result.getRefreshToken());
         assertEquals(authenticationRequest.getLogin().toLowerCase(), authenticationRequest.getLogin());
 
+        verify(userRepository, times(1)).findByLogin(authenticationRequest.getLogin());
         verify(authenticationManager, times(1)).authenticate(usernamePasswordAuthenticationToken);
         verify(jwtService, times(1)).generateAccessToken(user);
         verify(jwtService, times(1)).generateRefreshToken(user);
     }
 
     @Test
+    public void auth_userNotFound_throwExc() {
+        when(userRepository.findByLogin(authenticationRequest.getLogin())).thenReturn(Optional.empty());
+
+        var userNotFoundException = assertThrows(UserNotFoundException.class, () -> authenticationService.auth(authenticationRequest, "test-ip"));
+        assertEquals("User with login: " + authenticationRequest.getLogin() + " not found", userNotFoundException.getMessage());
+    }
+
+    @Test
     public void auth_authException_throwExc() {
-        var badCredentialsException = new BadCredentialsException("Bad credentials");
+        BadCredentialsException badCredentialsException = new BadCredentialsException("Bad credentials");
+        when(userRepository.findByLogin(authenticationRequest.getLogin())).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(usernamePasswordAuthenticationToken))
                 .thenThrow(badCredentialsException);
 
-        BadCredentialsException result = assertThrows(BadCredentialsException.class, () -> authenticationService.auth(authenticationRequest));
+        var result = assertThrows(BadCredentialsException.class, () -> authenticationService.auth(authenticationRequest, "test-ip"));
 
         assertEquals(badCredentialsException.getMessage(), result.getMessage());
-        verify(authenticationManager, times(1)).authenticate(usernamePasswordAuthenticationToken);
         verifyNoInteractions(jwtService);
     }
 
     @Test
-    public void auth_userNotFound_throwExc() {
-        var userNotFoundException = new UserNotFoundException("User with login: " + authenticationRequest.getLogin() + " not found");
-        when(authenticationManager.authenticate(usernamePasswordAuthenticationToken))
-                .thenThrow(userNotFoundException);
+    public void auth_tooManyRequests_throwExc() {
+        var tooManyRequestsException = new TooManyRequestsException("Too many login attempts. Try again in a minute");
+        when(userRepository.findByLogin(authenticationRequest.getLogin())).thenReturn(Optional.of(user));
+        doThrow(tooManyRequestsException).when(rateLimiterService).validateOrThrow(
+                RateLimiterKeyUtil.generateIpKey("auth", authenticationRequest.getLogin(), "test-ip"),
+                5,
+                Duration.ofMinutes(1),
+                "Too many login attempts. Try again in a minute"
+        );
 
-        UserNotFoundException result = assertThrows(UserNotFoundException.class, () -> authenticationService.auth(authenticationRequest));
+        var result = assertThrows(TooManyRequestsException.class, () -> authenticationService.auth(authenticationRequest, "test-ip"));
 
-        assertEquals(userNotFoundException.getMessage(), result.getMessage());
-        verify(authenticationManager, times(1)).authenticate(usernamePasswordAuthenticationToken);
+        assertEquals(tooManyRequestsException.getMessage(), result.getMessage());
         verifyNoInteractions(jwtService);
     }
 
     @Test
     public void logout_successfullyRevokeToken() {
         Date expiration = Date.from(Instant.now().plusSeconds(3600L));
-        String tokenId = "token-id";
         ArgumentCaptor<Long> ttlCaptor = ArgumentCaptor.forClass(Long.class);
 
         when(userService.getCurrentUser()).thenReturn(user);
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(jwtService.extractClaims(logoutRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getExpiration()).thenReturn(expiration);
-        when(claims.getId()).thenReturn(tokenId);
+        when(claims.getId()).thenReturn(TOKEN_ID);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         authenticationService.logout(logoutRequest);
 
-        verify(jwtService, times(1)).extractClaims(REFRESH_TOKEN);
+        verify(jwtService, times(1)).extractClaims(logoutRequest.getRefreshToken());
         verify(valueOperations, times(1)).set(
-                eq("blacklist:refresh:token-id"),
+                eq("blacklist:refresh:" + TOKEN_ID),
                 eq("true"),
                 ttlCaptor.capture(),
                 eq(TimeUnit.SECONDS)
@@ -160,64 +183,97 @@ class AuthenticationServiceImplTest {
     @Test
     public void logout_expiredToken_skipBlacklist() {
         Date expiration = Date.from(Instant.now().minusSeconds(60L));
-        String tokenId = "token-id";
 
         when(userService.getCurrentUser()).thenReturn(user);
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
+        when(jwtService.extractClaims(logoutRequest.getRefreshToken())).thenReturn(claims);
         when(claims.getExpiration()).thenReturn(expiration);
-        when(claims.getId()).thenReturn(tokenId);
+        when(claims.getId()).thenReturn(TOKEN_ID);
 
         authenticationService.logout(logoutRequest);
 
-        verify(jwtService, times(1)).extractClaims(REFRESH_TOKEN);
+        verifyNoInteractions(redisTemplate, valueOperations);
+    }
+
+    @Test
+    public void logout_tooManyRequests_throwExc() {
+        var tooManyRequestsException = new TooManyRequestsException("Too many logout attempts. Try again in a minute");
+        when(userService.getCurrentUser()).thenReturn(user);
+        when(jwtService.extractClaims(logoutRequest.getRefreshToken())).thenReturn(claims);
+        when(claims.getSubject()).thenReturn(TestUtil.USER_ID);
+        doThrow(tooManyRequestsException).when(rateLimiterService).validateOrThrow(
+                RateLimiterKeyUtil.generateKey("logout", TestUtil.USER_ID),
+                5,
+                Duration.ofMinutes(1),
+                "Too many logout attempts. Try again in a minute"
+        );
+
+        var result = assertThrows(TooManyRequestsException.class, () -> authenticationService.logout(logoutRequest));
+        assertEquals(tooManyRequestsException.getMessage(), result.getMessage());
+
         verifyNoInteractions(redisTemplate, valueOperations);
     }
 
     @Test
     public void refresh_returnAccessToken() {
-        String tokenId = "token-id";
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
-        when(claims.getId()).thenReturn(tokenId);
-        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
-        when(claims.getSubject()).thenReturn("subject");
-        when(userRepository.findByLogin("subject")).thenReturn(Optional.of(user));
-        when(jwtService.generateAccessToken(user)).thenReturn(ACCESS_TOKEN);
+        when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
+        when(claims.getId()).thenReturn(TOKEN_ID);
+        when(redisTemplate.hasKey("blacklist:refresh:" + TOKEN_ID)).thenReturn(Boolean.FALSE);
+        when(claims.getSubject()).thenReturn(TestUtil.USER_ID);
+        when(userRepository.findById(Long.valueOf(TestUtil.USER_ID))).thenReturn(Optional.of(user));
+        when(jwtService.generateAccessToken(user)).thenReturn(TestUtil.ACCESS_TOKEN);
 
         String result = authenticationService.refreshToken(refreshTokenRequest);
 
         assertNotNull(result);
-        assertEquals(ACCESS_TOKEN, result);
+        assertEquals(TestUtil.ACCESS_TOKEN, result);
 
-        verify(userRepository, times(1)).findByLogin("subject");
+        verify(userRepository, times(1)).findById(Long.valueOf(TestUtil.USER_ID));
         verify(jwtService, times(1)).generateAccessToken(user);
     }
     @Test
     public void refresh_ifRevoked_throwExc() {
-        String tokenId = "token-id";
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
-        when(claims.getId()).thenReturn(tokenId);
-        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.TRUE);
+        when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
+        when(claims.getId()).thenReturn(TOKEN_ID);
+        when(redisTemplate.hasKey("blacklist:refresh:" + TOKEN_ID)).thenReturn(Boolean.TRUE);
 
-        TokenRevokedException tokenRevokedException = assertThrows(TokenRevokedException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
-        assertEquals("Token with id: token-id revoked", tokenRevokedException.getMessage());
+        var tokenRevokedException = assertThrows(TokenRevokedException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
+        assertEquals("Token with id: " + TOKEN_ID + " revoked", tokenRevokedException.getMessage());
 
         verify(jwtService, never()).generateAccessToken(user);
     }
 
     @Test
     public void refresh_userNotFound_throwExc() {
-        String tokenId = "token-id";
-        when(jwtService.extractClaims(REFRESH_TOKEN)).thenReturn(claims);
-        when(claims.getId()).thenReturn(tokenId);
-        when(redisTemplate.hasKey("blacklist:refresh:token-id")).thenReturn(Boolean.FALSE);
-        when(claims.getSubject()).thenReturn("subject");
-        when(userRepository.findByLogin("subject")).thenReturn(Optional.empty());
+        when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
+        when(claims.getId()).thenReturn(TOKEN_ID);
+        when(redisTemplate.hasKey("blacklist:refresh:" + TOKEN_ID)).thenReturn(Boolean.FALSE);
+        when(claims.getSubject()).thenReturn(TestUtil.USER_ID);
+        when(userRepository.findById(Long.valueOf(TestUtil.USER_ID))).thenReturn(Optional.empty());
 
-        UserNotFoundException userNotFoundException = assertThrows(UserNotFoundException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
-        assertEquals("User with login: subject not found", userNotFoundException.getMessage());
+        var userNotFoundException = assertThrows(UserNotFoundException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
+        assertEquals("User with id: " + TestUtil.USER_ID + " not found", userNotFoundException.getMessage());
 
         verify(jwtService, never()).generateAccessToken(user);
+    }
 
+    @Test
+    public void refresh_tooManyRequests_throwExc() {
+        var tooManyRequestsException = new TooManyRequestsException("Too many token refresh attempts. Try again in a minute");
+        when(jwtService.extractClaims(refreshTokenRequest.getRefreshToken())).thenReturn(claims);
+        when(claims.getId()).thenReturn(TOKEN_ID);
+        when(redisTemplate.hasKey("blacklist:refresh:" + TOKEN_ID)).thenReturn(Boolean.FALSE);
+        when(claims.getSubject()).thenReturn(TestUtil.USER_ID);
+        doThrow(tooManyRequestsException).when(rateLimiterService).validateOrThrow(
+                RateLimiterKeyUtil.generateKey("refresh", TestUtil.USER_ID),
+                5,
+                Duration.ofMinutes(1),
+                "Too many token refresh attempts. Try again in a minute"
+        );
+
+        var result = assertThrows(TooManyRequestsException.class, () -> authenticationService.refreshToken(refreshTokenRequest));
+        assertEquals(tooManyRequestsException.getMessage(), result.getMessage());
+
+        verify(jwtService, never()).generateAccessToken(user);
     }
 
 

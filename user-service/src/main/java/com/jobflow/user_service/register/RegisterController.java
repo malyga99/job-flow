@@ -1,20 +1,22 @@
 package com.jobflow.user_service.register;
 
 import com.jobflow.user_service.handler.ResponseError;
+import com.jobflow.user_service.web.IpUtils;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/register")
@@ -25,8 +27,9 @@ import org.springframework.web.bind.annotation.RestController;
 )
 public class RegisterController {
 
-    private final RegisterService registerService;
     private static final Logger LOGGER = LoggerFactory.getLogger(RegisterController.class);
+
+    private final RegisterService registerService;
 
     @Operation(
             summary = "User registration",
@@ -38,19 +41,25 @@ public class RegisterController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "409", description = "User with this login already exists",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))
             }
     )
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> register(
-            @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Registration details", required = true
-            ) RegisterRequest registerRequest
+            @RequestPart(value = "user") @Valid @Parameter(description = "User registration details", required = true) RegisterRequest registerRequest,
+            @RequestPart(value = "avatar", required = false) @Parameter(description = "User avatar", required = false) MultipartFile avatar,
+            HttpServletRequest request
     ) {
         LOGGER.info("[POST] Register request received for login: {}", registerRequest.getLogin());
-        registerService.register(registerRequest);
+
+        String ip = IpUtils.extractClientIp(request);
+        registerService.register(registerRequest, avatar, ip);
         return ResponseEntity.ok().build();
     }
 
@@ -66,6 +75,10 @@ public class RegisterController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "410", description = "Code expired",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
@@ -78,6 +91,7 @@ public class RegisterController {
             ) ResendCodeRequest resendCodeRequest
     ) {
         LOGGER.info("[POST] Resend code request received for login: {}", resendCodeRequest.getLogin());
+
         registerService.resendCode(resendCodeRequest);
         return ResponseEntity.ok().build();
     }
@@ -94,6 +108,10 @@ public class RegisterController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "410", description = "Code expired",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
@@ -106,6 +124,7 @@ public class RegisterController {
             ) ConfirmCodeRequest confirmCodeRequest
     ) {
         LOGGER.info("[POST] Confirm code request received for login: {}", confirmCodeRequest.getLogin());
+
         return ResponseEntity.ok(registerService.confirmCode(confirmCodeRequest));
     }
 }

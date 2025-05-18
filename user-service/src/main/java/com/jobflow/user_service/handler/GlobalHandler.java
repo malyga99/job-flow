@@ -1,6 +1,5 @@
 package com.jobflow.user_service.handler;
 
-import com.jobflow.user_service.email.EmailService;
 import com.jobflow.user_service.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,14 @@ public class GlobalHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(responseError);
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ResponseError> tooManyRequestsExcHandler(TooManyRequestsException exc) {
+        LOGGER.error("[Too Many Requests Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.TOO_MANY_REQUESTS.value());
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(responseError);
+    }
+
     @ExceptionHandler(TokenRevokedException.class)
     public ResponseEntity<ResponseError> tokenRevokedExcHandler(TokenRevokedException exc) {
         LOGGER.error("[Token Revoked Exception]: {}", exc.getMessage());
@@ -44,6 +51,22 @@ public class GlobalHandler {
     @ExceptionHandler(EmailServiceException.class)
     public ResponseEntity<ResponseError> emailServiceExcHandler(EmailServiceException exc) {
         LOGGER.error("[Email Service Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseError);
+    }
+
+    @ExceptionHandler(FileServiceException.class)
+    public ResponseEntity<ResponseError> fileServiceExcHandler(FileServiceException exc) {
+        LOGGER.error("[File Service Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseError);
+    }
+
+    @ExceptionHandler(OpenIdServiceException.class)
+    public ResponseEntity<ResponseError> openIdServiceExcHandler(OpenIdServiceException exc) {
+        LOGGER.error("[OpenID Service Exception]: {}", exc.getMessage());
         ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseError);
@@ -65,12 +88,36 @@ public class GlobalHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
     }
 
+    @ExceptionHandler(UnsupportedProviderException.class)
+    public ResponseEntity<ResponseError> unsupportedProviderExcHandler(UnsupportedProviderException exc) {
+        LOGGER.error("[Unsupported Provider Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
+    }
+
+    @ExceptionHandler(StateValidationException.class)
+    public ResponseEntity<ResponseError> stateValidationExcHandler(StateValidationException exc) {
+        LOGGER.error("[State Validation Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
+    }
+
+    @ExceptionHandler(IdTokenValidationException.class)
+    public ResponseEntity<ResponseError> idTokenValidationExcHandler(IdTokenValidationException exc) {
+        LOGGER.error("[Id Token Validation Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ResponseError> methodArgumentNotValidExcHandler(MethodArgumentNotValidException exc) {
         String errorMessages = exc.getFieldErrors().stream()
                 .map(el -> "%s: %s".formatted(el.getField(), el.getDefaultMessage()))
                 .collect(joining(", "));
-        LOGGER.error("Validation Exception: {}", errorMessages);
+        LOGGER.error("[Validation Exception]: {}", errorMessages);
 
         ResponseError responseError = ResponseError.buildResponseError(errorMessages, HttpStatus.BAD_REQUEST.value());
 

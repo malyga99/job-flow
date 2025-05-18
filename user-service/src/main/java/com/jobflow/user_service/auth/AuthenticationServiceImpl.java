@@ -1,8 +1,11 @@
 package com.jobflow.user_service.auth;
 
 import com.jobflow.user_service.exception.TokenRevokedException;
+import com.jobflow.user_service.exception.TooManyRequestsException;
 import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.jwt.JwtService;
+import com.jobflow.user_service.rateLimiter.RateLimiterKeyUtil;
+import com.jobflow.user_service.rateLimiter.RateLimiterService;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
 import com.jobflow.user_service.user.UserService;
@@ -25,26 +28,39 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
-    private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService;
-    private final RedisTemplate<String, String> redisTemplate;
-    private final UserService userService;
-    private final UserRepository userRepository;
     private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationServiceImpl.class);
 
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
+    private final UserService userService;
+    private final UserRepository userRepository;
+    private final RateLimiterService rateLimiterService;
+    private final RedisTemplate<String, String> redisTemplate;
+
     @Override
-    public AuthenticationResponse auth(AuthenticationRequest authenticationRequest) {
+    public AuthenticationResponse auth(AuthenticationRequest authenticationRequest, String clientIp) {
         LOGGER.debug("Starting user authentication with login: {}", authenticationRequest.getLogin());
+
         authenticationRequest.setLogin(authenticationRequest.getLogin().toLowerCase());
 
+        User userFromDb = userRepository.findByLogin(authenticationRequest.getLogin())
+                .orElseThrow(() -> new UserNotFoundException("User with login: " + authenticationRequest.getLogin() + " not found"));
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateIpKey("auth", authenticationRequest.getLogin(), clientIp),
+                5,
+                Duration.ofMinutes(1),
+                "Too many login attempts. Try again in a minute"
+        );
+
         Authentication authenticate = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                authenticationRequest.getLogin(),
+                userFromDb.getId(),
                 authenticationRequest.getPassword()
         ));
 
         User user = (User) authenticate.getPrincipal();
-        LOGGER.debug("Successfully user authentication with login: {}", authenticationRequest.getLogin());
+        LOGGER.debug("Successfully user authentication: {}", user.displayInfo());
 
         return new AuthenticationResponse(
                 jwtService.generateAccessToken(user),
@@ -55,10 +71,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public void logout(LogoutRequest logoutRequest) {
         User currentUser = userService.getCurrentUser();
-        LOGGER.debug("Starting logout process for user: {}", currentUser.getLogin());
+        LOGGER.debug("Starting logout process for user: {}", currentUser.displayInfo());
 
         String refreshToken = logoutRequest.getRefreshToken();
         Claims claims = jwtService.extractClaims(refreshToken);
+
+        String userId = claims.getSubject();
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("logout", userId),
+                5,
+                Duration.ofMinutes(1),
+                "Too many logout attempts. Try again in a minute"
+        );
 
         Date expiration = claims.getExpiration();
         String tokenId = claims.getId();
@@ -67,9 +92,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (ttl > 0) {
             String key = String.format(BLACKLIST_KEY, tokenId);
             redisTemplate.opsForValue().set(key, "true", ttl, TimeUnit.SECONDS);
-            LOGGER.debug("Successfully revoked refresh token with jti: {} (TTL: {} seconds) for user: {}", tokenId, ttl, currentUser.getLogin());
+            LOGGER.debug("Successfully revoked refresh token with jti: {} (TTL: {} seconds) for user: {}", tokenId, ttl, currentUser.displayInfo());
         } else {
-            LOGGER.debug("Refresh token with jti: {} for user: {} already expired", tokenId, currentUser.getLogin());
+            LOGGER.debug("Refresh token with jti: {} for user: {} already expired", tokenId, currentUser.displayInfo());
         }
     }
 
@@ -83,11 +108,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String tokenId = claims.getId();
         validateIsTokenRevoked(tokenId);
 
-        String login = claims.getSubject();
-        User user = userRepository.findByLogin(login)
-                        .orElseThrow(() -> new UserNotFoundException("User with login: " + login + " not found"));
+        String userId = claims.getSubject();
 
-        LOGGER.debug("Successfully refreshed token for user: {}", user.getLogin());
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("refresh", userId),
+                5,
+                Duration.ofMinutes(1),
+                "Too many token refresh attempts. Try again in a minute"
+        );
+
+        User user = userRepository.findById(Long.valueOf(userId))
+                        .orElseThrow(() -> new UserNotFoundException("User with id: " + userId + " not found"));
+
+        LOGGER.debug("Successfully refreshed token for user: {}", user.displayInfo());
         return jwtService.generateAccessToken(user);
     }
 

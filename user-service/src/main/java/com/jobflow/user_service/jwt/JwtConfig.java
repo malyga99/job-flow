@@ -21,8 +21,8 @@ public class JwtConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return login -> userRepository.findByLogin(login)
-                .orElseThrow(() -> new UserNotFoundException("User with login: " + login + " not found"));
+        return id -> userRepository.findById(Long.valueOf(id))
+                .orElseThrow(() -> new UserNotFoundException("User with id: " + id + " not found"));
     }
 
     @Bean
@@ -30,6 +30,7 @@ public class JwtConfig {
         DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
         daoAuthenticationProvider.setUserDetailsService(userDetailsService());
         daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+
         return daoAuthenticationProvider;
     }
 

@@ -20,17 +20,18 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final ObjectMapper objectMapper;
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomAuthenticationEntryPoint.class);
+
+    private final ObjectMapper objectMapper;
 
     @Override
     public void commence(HttpServletRequest request,
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException, ServletException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String login = (authentication != null) ? authentication.getName() : "Anonymous";
+        String userId = (authentication != null) ? authentication.getName() : "Anonymous";
 
-        LOGGER.error("[Authentication Error]: {} for request: {} by user: {}", authException.getMessage(), request.getRequestURI(), login);
+        LOGGER.error("[Authentication Error]: {} for request: {} by userId: {}", authException.getMessage(), request.getRequestURI(), userId);
 
         response.setContentType("application/json");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

@@ -4,12 +4,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import static io.swagger.v3.oas.annotations.media.Schema.AccessMode.READ_ONLY;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Schema(description = "Register request")
 public class RegisterRequest {
 
@@ -32,4 +36,7 @@ public class RegisterRequest {
     @Size(min = 5, max = 100, message = "Password length must be from 5 to 100 characters")
     @Schema(description = "User password", example = "abcde")
     private String password;
+
+    @Schema(description = "User avatar as byte array. Set manually from MultipartFile", accessMode = READ_ONLY)
+    private byte[] avatar;
 }

@@ -2,9 +2,9 @@ package com.jobflow.user_service.auth;
 
 import com.jobflow.user_service.BaseIT;
 import com.jobflow.user_service.TestUtil;
+import com.jobflow.user_service.exception.UserNotFoundException;
 import com.jobflow.user_service.handler.ResponseError;
 import com.jobflow.user_service.jwt.JwtService;
-import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
 import com.jobflow.user_service.user.UserRepository;
 import io.jsonwebtoken.Jwts;
@@ -15,19 +15,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Duration;
 import java.util.Date;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthenticationIT extends BaseIT {
-
-    private static final String LOGIN = "ivanivanov@gmail.com";
-    private static final String PASSWORD = "abcde";
-    private static final String BLACKLIST_KEY = "blacklist:refresh:%s";
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -44,12 +42,21 @@ public class AuthenticationIT extends BaseIT {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
+    @Autowired
+    private UserDetailsService userDetailsService;
+
     private AuthenticationRequest authenticationRequest;
+
+    private User savedUser;
 
     @BeforeEach
     public void setup() {
         initDb();
-        authenticationRequest = new AuthenticationRequest(LOGIN, PASSWORD);
+        clearRateLimitKeys();
+
+        savedUser = userRepository.findAll().get(0);
+
+        authenticationRequest = TestUtil.createAuthRequest();
     }
 
     @Test
@@ -69,30 +76,10 @@ public class AuthenticationIT extends BaseIT {
         assertNotNull(responseBody.getAccessToken());
         assertNotNull(responseBody.getRefreshToken());
 
-        String loginAccessToken = jwtService.extractLogin(responseBody.getAccessToken());
-        String loginRefreshToken = jwtService.extractLogin(responseBody.getRefreshToken());
-        assertEquals(LOGIN, loginAccessToken);
-        assertEquals(LOGIN, loginRefreshToken);
-    }
-
-    @Test
-    public void auth_invalidData_returnBadRequest() {
-        AuthenticationRequest invalidRequest = new AuthenticationRequest("", "");
-        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(invalidRequest);
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/auth",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
+        String userIdAccessToken = jwtService.extractUserId(responseBody.getAccessToken());
+        String userIdRefreshToken = jwtService.extractUserId(responseBody.getRefreshToken());
+        assertEquals(savedUser.getId(), Long.valueOf(userIdAccessToken));
+        assertEquals(savedUser.getId(), Long.valueOf(userIdRefreshToken));
     }
 
     @Test
@@ -137,6 +124,34 @@ public class AuthenticationIT extends BaseIT {
     }
 
     @Test
+    public void auth_tooManyRequests_returnTooManyRequests() {
+        HttpEntity<AuthenticationRequest> request = TestUtil.createRequest(authenticationRequest);
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/auth",
+                    HttpMethod.POST,
+                    request,
+                    AuthenticationResponse.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many login attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
     public void logout_successfullyRevokeToken() {
         AuthenticationResponse authenticationResponse = authenticateUser();
         String refreshToken = authenticationResponse.getRefreshToken();
@@ -157,7 +172,7 @@ public class AuthenticationIT extends BaseIT {
         assertEquals(HttpStatus.OK, response.getStatusCode());
 
         String tokenId = jwtService.extractClaims(refreshToken).getId();
-        String key = String.format(BLACKLIST_KEY, tokenId);
+        String key = String.format("blacklist:refresh:%s", tokenId);
         String value = redisTemplate.opsForValue().get(key);
 
         assertNotNull(value);
@@ -192,32 +207,6 @@ public class AuthenticationIT extends BaseIT {
     }
 
     @Test
-    public void logout_invalidData_returnBadRequest() {
-        AuthenticationResponse authenticationResponse = authenticateUser();
-        String accessToken = authenticationResponse.getAccessToken();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-
-        LogoutRequest logoutRequest = new LogoutRequest(null);
-        HttpEntity<LogoutRequest> request = TestUtil.createRequest(logoutRequest, headers);
-
-        ResponseEntity<ResponseError> response = restTemplate.exchange(
-                "/api/v1/auth/logout",
-                HttpMethod.POST,
-                request,
-                ResponseError.class
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        ResponseError error = response.getBody();
-        assertNotNull(error);
-        assertNotNull(error.getMessage());
-        assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
-    }
-
-    @Test
     public void logout_withoutToken_returnUnauthorized() {
         AuthenticationResponse authenticationResponse = authenticateUser();
         String refreshToken = authenticationResponse.getRefreshToken();
@@ -242,6 +231,42 @@ public class AuthenticationIT extends BaseIT {
     }
 
     @Test
+    public void logout_tooManyRequests_returnTooManyRequests() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = authenticationResponse.getRefreshToken();
+        String accessToken = authenticationResponse.getAccessToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+
+        LogoutRequest logoutRequest = new LogoutRequest(refreshToken);
+        HttpEntity<LogoutRequest> request = TestUtil.createRequest(logoutRequest, headers);
+
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/auth/logout",
+                    HttpMethod.POST,
+                    request,
+                    Void.class
+            );
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/auth/logout",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many logout attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
     public void refresh_returnAccessToken() {
         AuthenticationResponse authenticationResponse = authenticateUser();
         String refreshToken = authenticationResponse.getRefreshToken();
@@ -261,8 +286,8 @@ public class AuthenticationIT extends BaseIT {
         String refreshedToken = response.getBody();
         assertNotNull(refreshedToken);
 
-        String refreshedTokenLogin = jwtService.extractLogin(refreshedToken);
-        assertEquals(LOGIN, refreshedTokenLogin);
+        String refreshedTokenUserId = jwtService.extractUserId(refreshedToken);
+        assertEquals(savedUser.getId(), Long.valueOf(refreshedTokenUserId));
     }
 
     @Test
@@ -316,10 +341,21 @@ public class AuthenticationIT extends BaseIT {
     }
 
     @Test
-    public void refresh_invalidData_returnBadRequest() {
+    public void refresh_tooManyRequests_returnTooManyRequests() {
+        AuthenticationResponse authenticationResponse = authenticateUser();
+        String refreshToken = authenticationResponse.getRefreshToken();
 
-        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(null);
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
         HttpEntity<RefreshTokenRequest> request = TestUtil.createRequest(refreshTokenRequest);
+
+        for (int i = 0; i < 5; i++) {
+            restTemplate.exchange(
+                    "/api/v1/auth/refresh",
+                    HttpMethod.POST,
+                    request,
+                    Void.class
+            );
+        }
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/auth/refresh",
@@ -328,13 +364,21 @@ public class AuthenticationIT extends BaseIT {
                 ResponseError.class
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
 
         ResponseError error = response.getBody();
         assertNotNull(error);
-        assertNotNull(error.getMessage());
+        assertEquals("Too many token refresh attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
         assertNotNull(error.getTime());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), error.getStatus());
+    }
+
+    //For JaCoCo code coverage
+    @Test
+    public void loadUserByUsername_idNotFound_returnNotFound() {
+        var userNotFoundException = assertThrows(UserNotFoundException.class, () -> userDetailsService.loadUserByUsername("999"));
+
+        assertEquals("User with id: 999 not found", userNotFoundException.getMessage());
     }
 
     private AuthenticationResponse authenticateUser() {
@@ -351,7 +395,7 @@ public class AuthenticationIT extends BaseIT {
 
     private String generateExpiredRefreshToken() {
         return Jwts.builder()
-                .setSubject(LOGIN)
+                .setSubject(String.valueOf(savedUser.getId()))
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() - 1000L))
                 .signWith(jwtService.getSecretKey(), SignatureAlgorithm.HS256)
@@ -368,7 +412,15 @@ public class AuthenticationIT extends BaseIT {
     private void initDb() {
         userRepository.deleteAll();
 
-        User user = new User(null, "Ivan", "Ivanov", LOGIN, passwordEncoder.encode(PASSWORD), Role.ROLE_USER);
+        User user = TestUtil.createUser();
+
+        user.setId(null);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
+    }
+
+    private void clearRateLimitKeys() {
+        Set<String> keys = redisTemplate.keys("rate_limiter:*");
+        redisTemplate.delete(keys);
     }
 }
