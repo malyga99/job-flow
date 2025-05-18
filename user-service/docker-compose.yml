@@ -1,5 +1,6 @@
 networks:
   job-flow-network:
+    external: true
 
 volumes:
   jobflow-user-pgdata:
