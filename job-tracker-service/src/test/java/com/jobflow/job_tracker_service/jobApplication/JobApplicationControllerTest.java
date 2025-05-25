@@ -4,19 +4,30 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.jobflow.job_tracker_service.TestUtil;
+import com.jobflow.job_tracker_service.exception.JobApplicationNotFoundException;
+import com.jobflow.job_tracker_service.exception.UserDontHavePermissionException;
 import com.jobflow.job_tracker_service.handler.GlobalHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.domain.Sort.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,7 +50,11 @@ class JobApplicationControllerTest {
 
     private String createUpdateDtoJson;
 
-    private JobApplicationDto jobApplicationDto;
+    private JobApplicationDto firstJobApplicationDto;
+
+    private JobApplicationDto secondJobApplicationDto;
+
+    private Page<JobApplicationDto> mockPage;
 
     @BeforeEach
     public void setup() throws JsonProcessingException {
@@ -50,30 +65,115 @@ class JobApplicationControllerTest {
         createUpdateDto = TestUtil.createJobApplicationCreateUpdateDto();
         createUpdateDtoJson = objectMapper.writeValueAsString(createUpdateDto);
 
-        jobApplicationDto = TestUtil.createJobApplicationDto();
+        firstJobApplicationDto = TestUtil.createJobApplicationDto();
+        secondJobApplicationDto = TestUtil.createJobApplicationDto();
+
+        mockPage = new PageImpl<>(List.of(firstJobApplicationDto, secondJobApplicationDto), PageRequest.of(0, 10, Sort.by(Direction.DESC, "updatedAt")), 2);
+    }
+
+    @Test
+    public void findMy_returnTwoJobApplications() throws Exception {
+        var argumentCaptor = ArgumentCaptor.forClass(Pageable.class);
+        when(jobApplicationService.findMy(any(Pageable.class))).thenReturn(mockPage);
+
+        mockMvc.perform(get("/api/v1/job-applications/my")
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.content[0].id").value(firstJobApplicationDto.getId()))
+                .andExpect(jsonPath("$.content[0].userId").value(firstJobApplicationDto.getUserId()))
+                .andExpect(jsonPath("$.content[0].company").value(firstJobApplicationDto.getCompany()))
+                .andExpect(jsonPath("$.content[1].id").value(secondJobApplicationDto.getId()))
+                .andExpect(jsonPath("$.content[1].userId").value(secondJobApplicationDto.getUserId()))
+                .andExpect(jsonPath("$.content[1].company").value(secondJobApplicationDto.getCompany()));
+
+        verify(jobApplicationService, times(1)).findMy(argumentCaptor.capture());
+
+        Pageable pageable = argumentCaptor.getValue();
+        assertEquals(0, pageable.getPageNumber());
+        assertEquals(10, pageable.getPageSize());
+
+        Order sortOrder = pageable.getSort().getOrderFor("updatedAt");
+        assertNotNull(sortOrder);
+        assertEquals(Direction.DESC, sortOrder.getDirection());
+    }
+
+    @Test
+    public void findById_returnJobApplication() throws Exception {
+        when(jobApplicationService.findById(1L)).thenReturn(firstJobApplicationDto);
+
+        mockMvc.perform(get("/api/v1/job-applications/{id}", 1L)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(firstJobApplicationDto.getId()))
+                .andExpect(jsonPath("$.userId").value(firstJobApplicationDto.getUserId()))
+                .andExpect(jsonPath("$.company").value(firstJobApplicationDto.getCompany()))
+                .andExpect(jsonPath("$.position").value(firstJobApplicationDto.getPosition()))
+                .andExpect(jsonPath("$.link").value(firstJobApplicationDto.getLink()))
+                .andExpect(jsonPath("$.source").value(firstJobApplicationDto.getSource().toString()))
+                .andExpect(jsonPath("$.sourceDetails").value(firstJobApplicationDto.getSourceDetails()))
+                .andExpect(jsonPath("$.salaryMin").value(firstJobApplicationDto.getSalaryMin()))
+                .andExpect(jsonPath("$.salaryMax").value(firstJobApplicationDto.getSalaryMax()))
+                .andExpect(jsonPath("$.currency").value(firstJobApplicationDto.getCurrency().toString()))
+                .andExpect(jsonPath("$.status").value(firstJobApplicationDto.getStatus().toString()))
+                .andExpect(jsonPath("$.comment").value(firstJobApplicationDto.getComment()))
+                .andExpect(jsonPath("$.appliedAt").exists())
+                .andExpect(jsonPath("$.createdAt").exists())
+                .andExpect(jsonPath("$.updatedAt").exists());
+
+        verify(jobApplicationService, times(1)).findById(1L);
+    }
+
+    @Test
+    public void findById_jobApplicationNotFound_returnNotFound() throws Exception {
+        var jobApplicationNotFound = new JobApplicationNotFoundException("Job application not found");
+        when(jobApplicationService.findById(1L)).thenThrow(jobApplicationNotFound);
+
+        mockMvc.perform(get("/api/v1/job-applications/{id}", 1L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(jobApplicationNotFound.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND.value()));
+
+        verify(jobApplicationService, times(1)).findById(1L);
+    }
+
+    @Test
+    public void findById_userDontHavePermission_returnForbidden() throws Exception {
+        var userDontHavePermissionException = new UserDontHavePermissionException("User dont have permission");
+        when(jobApplicationService.findById(1L)).thenThrow(userDontHavePermissionException);
+
+        mockMvc.perform(get("/api/v1/job-applications/{id}", 1L))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(userDontHavePermissionException.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.FORBIDDEN.value()));
+
+        verify(jobApplicationService, times(1)).findById(1L);
     }
 
     @Test
     public void create_returnCreatedJobApplication() throws Exception {
-        when(jobApplicationService.create(createUpdateDto)).thenReturn(jobApplicationDto);
+        when(jobApplicationService.create(createUpdateDto)).thenReturn(firstJobApplicationDto);
 
         mockMvc.perform(post("/api/v1/job-applications")
                         .contentType(APPLICATION_JSON)
                         .accept(APPLICATION_JSON)
                         .content(createUpdateDtoJson))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(jobApplicationDto.getId()))
-                .andExpect(jsonPath("$.userId").value(jobApplicationDto.getUserId()))
-                .andExpect(jsonPath("$.company").value(jobApplicationDto.getCompany()))
-                .andExpect(jsonPath("$.position").value(jobApplicationDto.getPosition()))
-                .andExpect(jsonPath("$.link").value(jobApplicationDto.getLink()))
-                .andExpect(jsonPath("$.source").value(jobApplicationDto.getSource().toString()))
-                .andExpect(jsonPath("$.sourceDetails").value(jobApplicationDto.getSourceDetails()))
-                .andExpect(jsonPath("$.salaryMin").value(jobApplicationDto.getSalaryMin()))
-                .andExpect(jsonPath("$.salaryMax").value(jobApplicationDto.getSalaryMax()))
-                .andExpect(jsonPath("$.currency").value(jobApplicationDto.getCurrency().toString()))
-                .andExpect(jsonPath("$.status").value(jobApplicationDto.getStatus().toString()))
-                .andExpect(jsonPath("$.comment").value(jobApplicationDto.getComment()))
+                .andExpect(jsonPath("$.id").value(firstJobApplicationDto.getId()))
+                .andExpect(jsonPath("$.userId").value(firstJobApplicationDto.getUserId()))
+                .andExpect(jsonPath("$.company").value(firstJobApplicationDto.getCompany()))
+                .andExpect(jsonPath("$.position").value(firstJobApplicationDto.getPosition()))
+                .andExpect(jsonPath("$.link").value(firstJobApplicationDto.getLink()))
+                .andExpect(jsonPath("$.source").value(firstJobApplicationDto.getSource().toString()))
+                .andExpect(jsonPath("$.sourceDetails").value(firstJobApplicationDto.getSourceDetails()))
+                .andExpect(jsonPath("$.salaryMin").value(firstJobApplicationDto.getSalaryMin()))
+                .andExpect(jsonPath("$.salaryMax").value(firstJobApplicationDto.getSalaryMax()))
+                .andExpect(jsonPath("$.currency").value(firstJobApplicationDto.getCurrency().toString()))
+                .andExpect(jsonPath("$.status").value(firstJobApplicationDto.getStatus().toString()))
+                .andExpect(jsonPath("$.comment").value(firstJobApplicationDto.getComment()))
                 .andExpect(jsonPath("$.appliedAt").exists())
                 .andExpect(jsonPath("$.createdAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists());
@@ -137,7 +237,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifSourceNotOtherAndSourceDetailsNotNull_returnBadRequests() throws Exception{
+    public void create_ifSourceNotOtherAndSourceDetailsNotNull_returnBadRequests() throws Exception {
         createUpdateDto.setSource(Source.LINKEDIN);
         createUpdateDto.setSourceDetails("some-details");
         createUpdateDtoJson = objectMapper.writeValueAsString(createUpdateDto);
@@ -155,7 +255,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifSalaryNotNullAndCurrencyNull_returnBadRequests() throws Exception{
+    public void create_ifSalaryNotNullAndCurrencyNull_returnBadRequests() throws Exception {
         createUpdateDto.setSalaryMin(100);
         createUpdateDto.setSalaryMax(300);
         createUpdateDto.setCurrency(null);
@@ -174,7 +274,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifSalaryNullAndCurrencyNotNull_returnBadRequests() throws Exception{
+    public void create_ifSalaryNullAndCurrencyNotNull_returnBadRequests() throws Exception {
         createUpdateDto.setSalaryMin(null);
         createUpdateDto.setSalaryMax(null);
         createUpdateDto.setCurrency(Currency.RUB);
@@ -193,7 +293,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifMaxSalaryLessThanMinSalary_returnBadRequests() throws Exception{
+    public void create_ifMaxSalaryLessThanMinSalary_returnBadRequests() throws Exception {
         createUpdateDto.setSalaryMin(300);
         createUpdateDto.setSalaryMax(100);
         createUpdateDto.setCurrency(Currency.RUB);

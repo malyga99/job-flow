@@ -10,6 +10,10 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
+/**
+ * A utility class for generating a JWT token using
+ * a secret from test/application.properties
+ */
 @Component
 public class JwtTestUtil {
 
