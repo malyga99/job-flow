@@ -7,6 +7,10 @@ import org.springframework.http.HttpHeaders;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * A utility class for use in unit/integration tests
+ * and avoid repeatable code.
+ */
 public final class TestUtil {
 
     private TestUtil() {
