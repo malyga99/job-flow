@@ -120,7 +120,6 @@ public class GlobalHandler {
         LOGGER.error("[Validation Exception]: {}", errorMessages);
 
         ResponseError responseError = ResponseError.buildResponseError(errorMessages, HttpStatus.BAD_REQUEST.value());
-
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseError);
     }
 

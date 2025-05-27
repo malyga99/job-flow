@@ -1,11 +1,11 @@
-name: User Service CI/CD
+name: Job Tracker Service CI/CD
 
 on:
   pull_request:
     branches:
       - 'main'
     paths:
-      - 'user-service/**'
+      - 'job-tracker-service/**'
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: user-service
+        working-directory: job-tracker-service
 
     steps:
       - name: Checkout code
@@ -34,7 +34,7 @@ jobs:
     needs: build
     defaults:
       run:
-        working-directory: user-service
+        working-directory: job-tracker-service
 
     steps:
       - name: Checkout code
@@ -55,7 +55,7 @@ jobs:
     needs: unit-tests
     defaults:
       run:
-        working-directory: user-service
+        working-directory: job-tracker-service
 
     steps:
       - name: Checkout code
@@ -77,8 +77,8 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: target/site/jacoco/jacoco.xml
-          flags: user-service
-          name: user-service-coverage
+          flags: job-tracker-service
+          name: job-tracker-service-coverage
           fail_ci_if_error: true
 
   docker-build-push:
@@ -87,7 +87,7 @@ jobs:
     needs: integration-tests
     defaults:
       run:
-        working-directory: user-service
+        working-directory: job-tracker-service
 
     steps:
       - name: Checkout code
@@ -105,7 +105,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./user-service
-          file: ./user-service/Dockerfile
+          context: ./job-tracker-service
+          file: ./job-tracker-service/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/user-service:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/job-tracker-service:latest
