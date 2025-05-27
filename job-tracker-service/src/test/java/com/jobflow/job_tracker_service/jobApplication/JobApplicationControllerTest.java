@@ -27,8 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -77,6 +76,7 @@ class JobApplicationControllerTest {
         when(jobApplicationService.findMy(any(Pageable.class))).thenReturn(mockPage);
 
         mockMvc.perform(get("/api/v1/job-applications/my")
+                        .contentType(APPLICATION_JSON)
                         .accept(APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(2))
@@ -104,6 +104,7 @@ class JobApplicationControllerTest {
         when(jobApplicationService.findById(1L)).thenReturn(firstJobApplicationDto);
 
         mockMvc.perform(get("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
                         .accept(APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(firstJobApplicationDto.getId()))
@@ -130,7 +131,9 @@ class JobApplicationControllerTest {
         var jobApplicationNotFound = new JobApplicationNotFoundException("Job application not found");
         when(jobApplicationService.findById(1L)).thenThrow(jobApplicationNotFound);
 
-        mockMvc.perform(get("/api/v1/job-applications/{id}", 1L))
+        mockMvc.perform(get("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(jobApplicationNotFound.getMessage()))
                 .andExpect(jsonPath("$.time").exists())
@@ -144,7 +147,9 @@ class JobApplicationControllerTest {
         var userDontHavePermissionException = new UserDontHavePermissionException("User dont have permission");
         when(jobApplicationService.findById(1L)).thenThrow(userDontHavePermissionException);
 
-        mockMvc.perform(get("/api/v1/job-applications/{id}", 1L))
+        mockMvc.perform(get("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value(userDontHavePermissionException.getMessage()))
                 .andExpect(jsonPath("$.time").exists())
@@ -201,7 +206,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifSourceOtherAndSourceDetailsNull_returnBadRequests() throws Exception {
+    public void create_ifSourceOtherAndSourceDetailsNull_returnBadRequest() throws Exception {
         createUpdateDto.setSource(Source.OTHER);
         createUpdateDto.setSourceDetails(null);
         createUpdateDtoJson = objectMapper.writeValueAsString(createUpdateDto);
@@ -219,7 +224,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifSourceOtherAndSourceDetailsBlank_returnBadRequests() throws Exception {
+    public void create_ifSourceOtherAndSourceDetailsBlank_returnBadRequest() throws Exception {
         createUpdateDto.setSource(Source.OTHER);
         createUpdateDto.setSourceDetails("");
         createUpdateDtoJson = objectMapper.writeValueAsString(createUpdateDto);
@@ -237,7 +242,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifSourceNotOtherAndSourceDetailsNotNull_returnBadRequests() throws Exception {
+    public void create_ifSourceNotOtherAndSourceDetailsNotNull_returnBadRequest() throws Exception {
         createUpdateDto.setSource(Source.LINKEDIN);
         createUpdateDto.setSourceDetails("some-details");
         createUpdateDtoJson = objectMapper.writeValueAsString(createUpdateDto);
@@ -255,7 +260,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifSalaryNotNullAndCurrencyNull_returnBadRequests() throws Exception {
+    public void create_ifSalaryNotNullAndCurrencyNull_returnBadRequest() throws Exception {
         createUpdateDto.setSalaryMin(100);
         createUpdateDto.setSalaryMax(300);
         createUpdateDto.setCurrency(null);
@@ -274,7 +279,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifSalaryNullAndCurrencyNotNull_returnBadRequests() throws Exception {
+    public void create_ifSalaryNullAndCurrencyNotNull_returnBadRequest() throws Exception {
         createUpdateDto.setSalaryMin(null);
         createUpdateDto.setSalaryMax(null);
         createUpdateDto.setCurrency(Currency.RUB);
@@ -293,7 +298,7 @@ class JobApplicationControllerTest {
     }
 
     @Test
-    public void create_ifMaxSalaryLessThanMinSalary_returnBadRequests() throws Exception {
+    public void create_ifMaxSalaryLessThanMinSalary_returnBadRequest() throws Exception {
         createUpdateDto.setSalaryMin(300);
         createUpdateDto.setSalaryMax(100);
         createUpdateDto.setCurrency(Currency.RUB);
@@ -309,5 +314,118 @@ class JobApplicationControllerTest {
                 .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
         verifyNoInteractions(jobApplicationService);
+    }
+
+    @Test
+    public void update_updateJobApplication() throws Exception {
+        doNothing().when(jobApplicationService).update(1L, createUpdateDto);
+
+        mockMvc.perform(put("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(createUpdateDtoJson))
+                .andExpect(status().isNoContent());
+
+        verify(jobApplicationService, times(1)).update(1L, createUpdateDto);
+    }
+
+    @Test
+    public void update_invalidData_returnBadRequest() throws Exception {
+        createUpdateDto.setCompany(null);
+        createUpdateDto.setStatus(null);
+        createUpdateDto.setAppliedAt(null);
+        createUpdateDtoJson = objectMapper.writeValueAsString(createUpdateDto);
+
+        mockMvc.perform(put("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(createUpdateDtoJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
+
+        verifyNoInteractions(jobApplicationService);
+    }
+
+    @Test
+    public void update_jobApplicationNotFound_returnNotFound() throws Exception {
+        var jobApplicationNotFound = new JobApplicationNotFoundException("Job application not found");
+        doThrow(jobApplicationNotFound).when(jobApplicationService).update(1L, createUpdateDto);
+
+        mockMvc.perform(put("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(createUpdateDtoJson))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(jobApplicationNotFound.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND.value()));
+
+        verify(jobApplicationService, times(1)).update(1L, createUpdateDto);
+    }
+
+    @Test
+    public void update_userDontHavePermission_returnForbidden() throws Exception {
+        var userDontHavePermissionException = new UserDontHavePermissionException("User dont have permission");
+        doThrow(userDontHavePermissionException).when(jobApplicationService).update(1L, createUpdateDto);
+
+        mockMvc.perform(put("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(createUpdateDtoJson))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(userDontHavePermissionException.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.FORBIDDEN.value()));
+
+        verify(jobApplicationService, times(1)).update(1L, createUpdateDto);
+    }
+
+    @Test
+    public void updateStatus_updateStatusJobApplication() throws Exception {
+        doNothing().when(jobApplicationService).updateStatus(1L, Status.APPLIED);
+
+        mockMvc.perform(patch("/api/v1/job-applications/{id}", 1L)
+                        .param("status", Status.APPLIED.toString())
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isNoContent());
+
+        verify(jobApplicationService, times(1)).updateStatus(1L, Status.APPLIED);
+    }
+
+    @Test
+    public void updateStatus_jobApplicationNotFound_returnNotFound() throws Exception {
+        var jobApplicationNotFound = new JobApplicationNotFoundException("Job application not found");
+        doThrow(jobApplicationNotFound).when(jobApplicationService).updateStatus(1L, Status.APPLIED);
+
+        mockMvc.perform(patch("/api/v1/job-applications/{id}", 1L)
+                        .param("status", Status.APPLIED.toString())
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(jobApplicationNotFound.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND.value()));
+
+        verify(jobApplicationService, times(1)).updateStatus(1L, Status.APPLIED);
+    }
+
+    @Test
+    public void updateStatus_userDontHavePermission_returnForbidden() throws Exception {
+        var userDontHavePermissionException = new UserDontHavePermissionException("User dont have permission");
+        doThrow(userDontHavePermissionException).when(jobApplicationService).updateStatus(1L, Status.APPLIED);
+
+        mockMvc.perform(patch("/api/v1/job-applications/{id}", 1L)
+                        .param("status", Status.APPLIED.toString())
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(userDontHavePermissionException.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.FORBIDDEN.value()));
+
+        verify(jobApplicationService, times(1)).updateStatus(1L, Status.APPLIED);
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -282,6 +283,210 @@ public class JobApplicationIT extends BaseIT {
                 "/api/v1/job-applications",
                 HttpMethod.POST,
                 request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void update_updatesJobApplicationCorrectly() {
+        var dataToUpdate = JobApplicationCreateUpdateDto.builder()
+                .company("Updated company")
+                .position("Updated position")
+                .link("Updated link")
+                .source(Source.LINKEDIN)
+                .salaryMin(100)
+                .salaryMax(300)
+                .currency(Currency.RUB)
+                .status(Status.APPLIED)
+                .comment("Updated comment")
+                .appliedAt(LocalDate.now())
+                .build();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(dataToUpdate, headers);
+
+        firstJobApplication.setId(null);
+        firstJobApplication.setUserId(USER_ID);
+        saveJobApplications(firstJobApplication);
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.PUT,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        JobApplication jobApplication = jobApplicationRepository.findById(firstJobApplication.getId()).get();
+        assertEquals(dataToUpdate.getCompany(), jobApplication.getCompany());
+        assertEquals(dataToUpdate.getPosition(), jobApplication.getPosition());
+        assertEquals(dataToUpdate.getLink(), jobApplication.getLink());
+        assertEquals(dataToUpdate.getSource(), jobApplication.getSource());
+        assertEquals(dataToUpdate.getSalaryMin(), jobApplication.getSalaryMin());
+        assertEquals(dataToUpdate.getSalaryMax(), jobApplication.getSalaryMax());
+        assertEquals(dataToUpdate.getCurrency(), jobApplication.getCurrency());
+        assertEquals(dataToUpdate.getStatus(), jobApplication.getStatus());
+        assertEquals(dataToUpdate.getComment(), jobApplication.getComment());
+        assertEquals(dataToUpdate.getAppliedAt(), jobApplication.getAppliedAt());
+        assertNotNull(jobApplication.getId());
+        assertNotNull(jobApplication.getUserId());
+        assertNotNull(jobApplication.getCreatedAt());
+        assertNotNull(jobApplication.getUpdatedAt());
+    }
+
+    @Test
+    public void update_jobApplicationNotFound_returnNotFound() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/999",
+                HttpMethod.PUT,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Job application with id: 999 not found", error.getMessage());
+        assertEquals(HttpStatus.NOT_FOUND.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void update_notYourOwnJobApplication_returnForbidden() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        firstJobApplication.setId(null);
+        firstJobApplication.setUserId(999L);
+        saveJobApplications(firstJobApplication);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.PUT,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.FORBIDDEN.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void update_withoutToken_returnUnauthorized() {
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/1",
+                HttpMethod.PUT,
+                null,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void updateStatus_updatesStatusCorrectly() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        firstJobApplication.setId(null);
+        firstJobApplication.setUserId(USER_ID);
+        saveJobApplications(firstJobApplication);
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.REJECTED,
+                HttpMethod.PATCH,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        JobApplication jobApplication = jobApplicationRepository.findById(firstJobApplication.getId()).get();
+        assertEquals(Status.REJECTED, jobApplication.getStatus());
+    }
+
+    @Test
+    public void updateStatus_jobApplicationNotFound_returnNotFound() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/999" + "?status=" + Status.REJECTED,
+                HttpMethod.PATCH,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Job application with id: 999 not found", error.getMessage());
+        assertEquals(HttpStatus.NOT_FOUND.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void updateStatus_notYourOwnJobApplication_returnForbidden() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        firstJobApplication.setId(null);
+        firstJobApplication.setUserId(999L);
+        saveJobApplications(firstJobApplication);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.REJECTED,
+                HttpMethod.PATCH,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.FORBIDDEN.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void updateStatus_withoutToken_returnUnauthorized() {
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/1" + "?status=" + Status.REJECTED,
+                HttpMethod.PATCH,
+                null,
                 ResponseError.class
         );
 
