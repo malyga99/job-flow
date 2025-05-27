@@ -64,7 +64,7 @@ public class JobApplicationController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
-                    @ApiResponse(responseCode = "401", description = "Authentication exception, e.g user is trying to get a job application that is not his own",
+                    @ApiResponse(responseCode = "403", description = "Authorization exception, e.g user is trying to get a job application that is not his own",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))
             }
@@ -106,5 +106,66 @@ public class JobApplicationController {
 
         return ResponseEntity.created(URI.create("/api/v1/job-applications/" + createdDto.getId()))
                 .body(createdDto);
+    }
+
+    @Operation(
+            summary = "Job application update",
+            description = "Updates the job application with the provided data",
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "Job application updated successfully",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = Void.class))),
+
+                    @ApiResponse(responseCode = "400", description = "Validation error",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "404", description = "Job application not found",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "403", description = "Authorization exception, e.g user is trying to update a job application that is not his own",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class)))
+            }
+    )
+    @PutMapping("/{id}")
+    public ResponseEntity<Void> update(
+            @PathVariable("id")  @Parameter(description = "Job application ID", example = "1", required = true) Long id,
+            @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Job application details", required = true
+            ) JobApplicationCreateUpdateDto dto
+    ) {
+        LOGGER.debug("[PUT] Request for update job application by id: {}", id);
+        jobApplicationService.update(id, dto);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Job application status update",
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "Job application status updated successfully",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = Void.class))),
+
+                    @ApiResponse(responseCode = "404", description = "Job application not found",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "403", description = "Authorization exception, e.g user is trying to update a job application that is not his own",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class)))
+            }
+    )
+    @PatchMapping("/{id}")
+    public ResponseEntity<Void> updateStatus(
+            @PathVariable("id")  @Parameter(description = "Job application ID", example = "1", required = true) Long id,
+            @RequestParam("status")  @Parameter(description = "Job application status", example = "APPLIED", required = true) Status status
+    ) {
+        LOGGER.debug("[PATCH] Request for update job application status by id: {}, status: {}", id, status);
+        jobApplicationService.updateStatus(id, status);
+
+        return ResponseEntity.noContent().build();
     }
 }

@@ -47,13 +47,57 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     @Override
     public JobApplicationDto create(JobApplicationCreateUpdateDto dto) {
         Long currentUserId = userService.getCurrentUserId();
-        LOGGER.debug("Creating a new job application for userId: {}", currentUserId);
+        LOGGER.debug("Creating a new job application by userId: {}", currentUserId);
 
         JobApplication jobApplication = jobApplicationMapper.toEntity(dto, currentUserId);
         JobApplication savedJobApplication = jobApplicationRepository.save(jobApplication);
 
-        LOGGER.debug("Successfully created job application with id: {} for userId: {}", savedJobApplication.getId(), currentUserId);
+        LOGGER.debug("Successfully created job application with id: {} by userId: {}", savedJobApplication.getId(), currentUserId);
         return jobApplicationMapper.toDto(savedJobApplication);
+    }
+
+    @Override
+    public void update(Long id, JobApplicationCreateUpdateDto dto) {
+        Long currentUserId = userService.getCurrentUserId();
+        LOGGER.debug("Updating job application with id: {} by userId: {}", id, currentUserId);
+
+        JobApplication jobApplication = jobApplicationRepository.findById(id)
+                .orElseThrow(() -> new JobApplicationNotFoundException("Job application with id: " + id + " not found"));
+        checkUserPermissions(currentUserId, jobApplication);
+
+        updateFields(jobApplication, dto);
+        jobApplicationRepository.save(jobApplication);
+
+        LOGGER.debug("Successfully updated job application with id: {} by userId: {}", id, currentUserId);
+    }
+
+    @Override
+    public void updateStatus(Long id, Status status) {
+        Long currentUserId = userService.getCurrentUserId();
+        LOGGER.debug("Updating the job application status with id: {} by userId: {}", id, currentUserId);
+
+        JobApplication jobApplication = jobApplicationRepository.findById(id)
+                .orElseThrow(() -> new JobApplicationNotFoundException("Job application with id: " + id + " not found"));
+        checkUserPermissions(currentUserId, jobApplication);
+
+        jobApplication.setStatus(status);
+        jobApplicationRepository.save(jobApplication);
+
+        LOGGER.debug("Successfully updated the job application status with id: {} by userId: {}", id, currentUserId);
+    }
+
+    private void updateFields(JobApplication jobApplication, JobApplicationCreateUpdateDto dto) {
+        jobApplication.setCompany(dto.getCompany());
+        jobApplication.setPosition(dto.getPosition());
+        jobApplication.setLink(dto.getLink());
+        jobApplication.setSource(dto.getSource());
+        jobApplication.setSourceDetails(dto.getSourceDetails());
+        jobApplication.setSalaryMin(dto.getSalaryMin());
+        jobApplication.setSalaryMax(dto.getSalaryMax());
+        jobApplication.setCurrency(dto.getCurrency());
+        jobApplication.setStatus(dto.getStatus());
+        jobApplication.setComment(dto.getComment());
+        jobApplication.setAppliedAt(dto.getAppliedAt());
     }
 
     private void checkUserPermissions(Long currentUserId, JobApplication jobApplication) {
