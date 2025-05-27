@@ -36,8 +36,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Fetching job application by id: {} for userId: {}", id, currentUserId);
 
-        JobApplication jobApplication = jobApplicationRepository.findById(id)
-                .orElseThrow(() -> new JobApplicationNotFoundException("Job application with id: " + id + " not found"));
+        JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
 
         LOGGER.debug("Fetched job application by id: {} for userId: {}", id, currentUserId);
@@ -61,8 +60,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Updating job application with id: {} by userId: {}", id, currentUserId);
 
-        JobApplication jobApplication = jobApplicationRepository.findById(id)
-                .orElseThrow(() -> new JobApplicationNotFoundException("Job application with id: " + id + " not found"));
+        JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
 
         updateFields(jobApplication, dto);
@@ -76,14 +74,31 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Updating the job application status with id: {} by userId: {}", id, currentUserId);
 
-        JobApplication jobApplication = jobApplicationRepository.findById(id)
-                .orElseThrow(() -> new JobApplicationNotFoundException("Job application with id: " + id + " not found"));
+        JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
 
         jobApplication.setStatus(status);
         jobApplicationRepository.save(jobApplication);
 
         LOGGER.debug("Successfully updated the job application status with id: {} by userId: {}", id, currentUserId);
+    }
+
+    @Override
+    public void delete(Long id) {
+        Long currentUserId = userService.getCurrentUserId();
+        LOGGER.debug("Deleting the job application with id: {} by userId: {}", id, userService);
+
+        JobApplication jobApplication = findByIdOrThrow(id);
+        checkUserPermissions(currentUserId, jobApplication);
+
+        jobApplicationRepository.delete(jobApplication);
+
+        LOGGER.debug("Successfully deleted the job application with id: {} by userId: {}", id, userService);
+    }
+
+    private JobApplication findByIdOrThrow(Long id) {
+        return jobApplicationRepository.findById(id)
+                .orElseThrow(() -> new JobApplicationNotFoundException("Job application with id: " + id + " not found"));
     }
 
     private void updateFields(JobApplication jobApplication, JobApplicationCreateUpdateDto dto) {

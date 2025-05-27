@@ -101,7 +101,7 @@ public class JobApplicationController {
                     description = "Job application details", required = true
             ) JobApplicationCreateUpdateDto dto
     ) {
-        LOGGER.info("[POST] Create job application request received");
+        LOGGER.info("[POST] Request for create job application");
         JobApplicationDto createdDto = jobApplicationService.create(dto);
 
         return ResponseEntity.created(URI.create("/api/v1/job-applications/" + createdDto.getId()))
@@ -165,6 +165,32 @@ public class JobApplicationController {
     ) {
         LOGGER.debug("[PATCH] Request for update job application status by id: {}, status: {}", id, status);
         jobApplicationService.updateStatus(id, status);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Job application delete",
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "Job application deleted successfully",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = Void.class))),
+
+                    @ApiResponse(responseCode = "404", description = "Job application not found",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "403", description = "Authorization exception, e.g user is trying to delete a job application that is not his own",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class)))
+            }
+    )
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(
+            @PathVariable("id") @Parameter(description = "Job application ID", example = "1", required = true) Long id
+    ) {
+        LOGGER.debug("[DELETE] Request for delete job application by id: {}", id);
+        jobApplicationService.delete(id);
 
         return ResponseEntity.noContent().build();
     }

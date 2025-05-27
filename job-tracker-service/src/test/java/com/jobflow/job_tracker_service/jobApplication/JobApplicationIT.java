@@ -49,14 +49,10 @@ public class JobApplicationIT extends BaseIT {
         secondJobApplication = TestUtil.createJobApplication();
 
         token = jwtTestUtil.generateToken(USER_ID);
-
-
     }
 
     @Test
     public void findMy_returnTwoJobApplications() {
-        firstJobApplication.setId(null);
-        secondJobApplication.setId(null);
         firstJobApplication.setUserId(USER_ID);
         secondJobApplication.setUserId(USER_ID);
         saveJobApplications(firstJobApplication, secondJobApplication);
@@ -137,7 +133,6 @@ public class JobApplicationIT extends BaseIT {
         headers.setBearerAuth(token);
         HttpEntity<Void> request = TestUtil.createRequest(null, headers);
 
-        firstJobApplication.setId(null);
         firstJobApplication.setUserId(USER_ID);
         saveJobApplications(firstJobApplication);
 
@@ -198,7 +193,6 @@ public class JobApplicationIT extends BaseIT {
         headers.setBearerAuth(token);
         HttpEntity<Void> request = TestUtil.createRequest(null, headers);
 
-        firstJobApplication.setId(null);
         firstJobApplication.setUserId(999L);
         saveJobApplications(firstJobApplication);
 
@@ -314,7 +308,6 @@ public class JobApplicationIT extends BaseIT {
         headers.setBearerAuth(token);
         HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(dataToUpdate, headers);
 
-        firstJobApplication.setId(null);
         firstJobApplication.setUserId(USER_ID);
         saveJobApplications(firstJobApplication);
 
@@ -372,7 +365,6 @@ public class JobApplicationIT extends BaseIT {
         headers.setBearerAuth(token);
         HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
 
-        firstJobApplication.setId(null);
         firstJobApplication.setUserId(999L);
         saveJobApplications(firstJobApplication);
 
@@ -416,7 +408,6 @@ public class JobApplicationIT extends BaseIT {
         headers.setBearerAuth(token);
         HttpEntity<Void> request = TestUtil.createRequest(null, headers);
 
-        firstJobApplication.setId(null);
         firstJobApplication.setUserId(USER_ID);
         saveJobApplications(firstJobApplication);
 
@@ -461,7 +452,6 @@ public class JobApplicationIT extends BaseIT {
         headers.setBearerAuth(token);
         HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
 
-        firstJobApplication.setId(null);
         firstJobApplication.setUserId(999L);
         saveJobApplications(firstJobApplication);
 
@@ -499,8 +489,98 @@ public class JobApplicationIT extends BaseIT {
         assertNotNull(error.getTime());
     }
 
+    @Test
+    public void delete_deletesJobApplicationCorrectly() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        saveJobApplications(firstJobApplication);
+        assertTrue(jobApplicationRepository.findById(firstJobApplication.getId()).isPresent());
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.DELETE,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        assertFalse(jobApplicationRepository.findById(firstJobApplication.getId()).isPresent());
+        assertEquals(0, jobApplicationRepository.findAll().size());
+    }
+
+    @Test
+    public void delete_jobApplicationNotFound_returnNotFound() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/999",
+                HttpMethod.DELETE,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Job application with id: 999 not found", error.getMessage());
+        assertEquals(HttpStatus.NOT_FOUND.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void delete_notYourOwnJobApplication_returnForbidden() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        firstJobApplication.setUserId(999L);
+        saveJobApplications(firstJobApplication);
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.DELETE,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.FORBIDDEN.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
+    public void delete_withoutToken_returnUnauthorized() {
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/1",
+                HttpMethod.DELETE,
+                null,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertNotNull(error.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
     private void saveJobApplications(JobApplication... jobApplications) {
-        jobApplicationRepository.saveAll(Arrays.asList(jobApplications));
+        Arrays.stream(jobApplications)
+                .peek(el -> el.setId(null))
+                .forEach(jobApplicationRepository::save);
     }
 
     private void clearDb() {
