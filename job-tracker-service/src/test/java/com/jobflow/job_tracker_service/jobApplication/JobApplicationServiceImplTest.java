@@ -231,4 +231,36 @@ class JobApplicationServiceImplTest {
         assertEquals("User with id: 1 cannot perform actions with job application with id: " + firstJobApplication.getId(),
                 userDontHavePermissionException.getMessage());
     }
+
+    @Test
+    public void delete_deletesJobApplication() {
+        firstJobApplication.setUserId(1L);
+        when(userService.getCurrentUserId()).thenReturn(1L);
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(firstJobApplication));
+
+        jobApplicationService.delete(1L);
+
+        verify(jobApplicationRepository, times(1)).findById(1L);
+        verify(jobApplicationRepository, times(1)).delete(firstJobApplication);
+    }
+
+    @Test
+    public void delete_jobApplicationNotFound_throwExc() {
+        when(userService.getCurrentUserId()).thenReturn(1L);
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.empty());
+
+        var jobApplicationNotFoundException = assertThrows(JobApplicationNotFoundException.class, () -> jobApplicationService.delete(1L));
+        assertEquals("Job application with id: 1 not found", jobApplicationNotFoundException.getMessage());
+    }
+
+    @Test
+    public void delete_userDontHavePermissions_throwExc() {
+        firstJobApplication.setUserId(999L);
+        when(userService.getCurrentUserId()).thenReturn(1L);
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(firstJobApplication));
+
+        var userDontHavePermissionException = assertThrows(UserDontHavePermissionException.class, () -> jobApplicationService.delete(1L));
+        assertEquals("User with id: 1 cannot perform actions with job application with id: " + firstJobApplication.getId(),
+                userDontHavePermissionException.getMessage());
+    }
 }

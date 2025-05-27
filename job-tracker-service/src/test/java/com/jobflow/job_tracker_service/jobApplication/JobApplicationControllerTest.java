@@ -428,4 +428,48 @@ class JobApplicationControllerTest {
 
         verify(jobApplicationService, times(1)).updateStatus(1L, Status.APPLIED);
     }
+
+    @Test
+    public void delete_deleteJobApplication() throws Exception {
+        doNothing().when(jobApplicationService).delete(1L);
+
+        mockMvc.perform(delete("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isNoContent());
+
+        verify(jobApplicationService, times(1)).delete(1L);
+    }
+
+    @Test
+    public void delete_jobApplicationNotFound_returnNotFound() throws Exception {
+        var jobApplicationNotFound = new JobApplicationNotFoundException("Job application not found");
+        doThrow(jobApplicationNotFound).when(jobApplicationService).delete(1L);
+
+        mockMvc.perform(delete("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(jobApplicationNotFound.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.NOT_FOUND.value()));
+
+        verify(jobApplicationService, times(1)).delete(1L);
+    }
+
+    @Test
+    public void delete_userDontHavePermission_returnForbidden() throws Exception {
+        var userDontHavePermissionException = new UserDontHavePermissionException("User dont have permission");
+        doThrow(userDontHavePermissionException).when(jobApplicationService).delete(1L);
+
+        mockMvc.perform(delete("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(userDontHavePermissionException.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.FORBIDDEN.value()));
+
+        verify(jobApplicationService, times(1)).delete(1L);
+    }
 }

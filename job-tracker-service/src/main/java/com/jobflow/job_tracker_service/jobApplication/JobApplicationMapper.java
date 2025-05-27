@@ -22,23 +22,23 @@ public class JobApplicationMapper {
                 .build();
     }
 
-    public JobApplicationDto toDto(JobApplication jobApplication) {
+    public JobApplicationDto toDto(JobApplication entity) {
         return JobApplicationDto.builder()
-                .id(jobApplication.getId())
-                .userId(jobApplication.getUserId())
-                .company(jobApplication.getCompany())
-                .position(jobApplication.getPosition())
-                .link(jobApplication.getLink())
-                .source(jobApplication.getSource())
-                .sourceDetails(jobApplication.getSourceDetails())
-                .salaryMin(jobApplication.getSalaryMin())
-                .salaryMax(jobApplication.getSalaryMax())
-                .currency(jobApplication.getCurrency())
-                .status(jobApplication.getStatus())
-                .comment(jobApplication.getComment())
-                .appliedAt(jobApplication.getAppliedAt())
-                .createdAt(jobApplication.getCreatedAt())
-                .updatedAt(jobApplication.getUpdatedAt())
+                .id(entity.getId())
+                .userId(entity.getUserId())
+                .company(entity.getCompany())
+                .position(entity.getPosition())
+                .link(entity.getLink())
+                .source(entity.getSource())
+                .sourceDetails(entity.getSourceDetails())
+                .salaryMin(entity.getSalaryMin())
+                .salaryMax(entity.getSalaryMax())
+                .currency(entity.getCurrency())
+                .status(entity.getStatus())
+                .comment(entity.getComment())
+                .appliedAt(entity.getAppliedAt())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
                 .build();
     }
 }

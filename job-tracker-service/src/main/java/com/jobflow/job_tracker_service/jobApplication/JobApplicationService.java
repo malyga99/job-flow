@@ -1,6 +1,5 @@
 package com.jobflow.job_tracker_service.jobApplication;
 
-import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -15,4 +14,6 @@ public interface JobApplicationService {
     void update(Long id, JobApplicationCreateUpdateDto dto);
 
     void updateStatus(Long id, Status status);
+
+    void delete(Long id);
 }
