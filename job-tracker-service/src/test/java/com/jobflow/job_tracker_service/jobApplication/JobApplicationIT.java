@@ -5,15 +5,17 @@ import com.jobflow.job_tracker_service.JwtTestUtil;
 import com.jobflow.job_tracker_service.TestPageResponse;
 import com.jobflow.job_tracker_service.TestUtil;
 import com.jobflow.job_tracker_service.handler.ResponseError;
+import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.*;
 
+import java.time.Duration;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JobApplicationIT extends BaseIT {
 
-    private static final Long USER_ID = 1L;
+    private static final Long USER_ID = TestUtil.USER_ID;
 
     @Autowired
     private JobApplicationRepository jobApplicationRepository;
@@ -31,6 +33,9 @@ public class JobApplicationIT extends BaseIT {
 
     @Autowired
     private JwtTestUtil jwtTestUtil;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
 
     private String token;
 
@@ -42,11 +47,13 @@ public class JobApplicationIT extends BaseIT {
 
     @BeforeEach
     public void setup() {
-        clearDb();
+        TestUtil.clearDb(jobApplicationRepository);
 
         createUpdateDto = TestUtil.createJobApplicationCreateUpdateDto();
         firstJobApplication = TestUtil.createJobApplication();
         secondJobApplication = TestUtil.createJobApplication();
+        firstJobApplication.setId(null);
+        secondJobApplication.setId(null);
 
         token = jwtTestUtil.generateToken(USER_ID);
     }
@@ -55,7 +62,7 @@ public class JobApplicationIT extends BaseIT {
     public void findMy_returnTwoJobApplications() {
         firstJobApplication.setUserId(USER_ID);
         secondJobApplication.setUserId(USER_ID);
-        saveJobApplications(firstJobApplication, secondJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication, secondJobApplication));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
@@ -134,7 +141,7 @@ public class JobApplicationIT extends BaseIT {
         HttpEntity<Void> request = TestUtil.createRequest(null, headers);
 
         firstJobApplication.setUserId(USER_ID);
-        saveJobApplications(firstJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
 
         ResponseEntity<JobApplicationDto> response = restTemplate.exchange(
                 "/api/v1/job-applications/" + firstJobApplication.getId(),
@@ -194,7 +201,7 @@ public class JobApplicationIT extends BaseIT {
         HttpEntity<Void> request = TestUtil.createRequest(null, headers);
 
         firstJobApplication.setUserId(999L);
-        saveJobApplications(firstJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/job-applications/" + firstJobApplication.getId(),
@@ -270,6 +277,26 @@ public class JobApplicationIT extends BaseIT {
     }
 
     @Test
+    public void create_deleteStatsFromRedisCorrectly() {
+        saveStatsInRedis(USER_ID);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        ResponseEntity<JobApplicationDto> response = restTemplate.exchange(
+                "/api/v1/job-applications",
+                HttpMethod.POST,
+                request,
+                JobApplicationDto.class
+        );
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+
+        assertNull(redisTemplate.opsForValue().get(StatsCacheKeyUtils.keyForUser(USER_ID)));
+    }
+
+    @Test
     public void create_withoutToken_returnUnauthorized() {
         HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto);
 
@@ -309,7 +336,7 @@ public class JobApplicationIT extends BaseIT {
         HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(dataToUpdate, headers);
 
         firstJobApplication.setUserId(USER_ID);
-        saveJobApplications(firstJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
 
         ResponseEntity<Void> response = restTemplate.exchange(
                 "/api/v1/job-applications/" + firstJobApplication.getId(),
@@ -335,6 +362,29 @@ public class JobApplicationIT extends BaseIT {
         assertNotNull(jobApplication.getUserId());
         assertNotNull(jobApplication.getCreatedAt());
         assertNotNull(jobApplication.getUpdatedAt());
+    }
+
+    @Test
+    public void update_deleteStatsFromRedisCorrectly() {
+        saveStatsInRedis(USER_ID);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.PUT,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        assertNull(redisTemplate.opsForValue().get(StatsCacheKeyUtils.keyForUser(USER_ID)));
     }
 
     @Test
@@ -366,7 +416,7 @@ public class JobApplicationIT extends BaseIT {
         HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
 
         firstJobApplication.setUserId(999L);
-        saveJobApplications(firstJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/job-applications/" + firstJobApplication.getId(),
@@ -409,7 +459,7 @@ public class JobApplicationIT extends BaseIT {
         HttpEntity<Void> request = TestUtil.createRequest(null, headers);
 
         firstJobApplication.setUserId(USER_ID);
-        saveJobApplications(firstJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
 
         ResponseEntity<Void> response = restTemplate.exchange(
                 "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.REJECTED,
@@ -422,6 +472,29 @@ public class JobApplicationIT extends BaseIT {
 
         JobApplication jobApplication = jobApplicationRepository.findById(firstJobApplication.getId()).get();
         assertEquals(Status.REJECTED, jobApplication.getStatus());
+    }
+
+    @Test
+    public void updateStatus_deleteStatsFromRedisCorrectly() {
+        saveStatsInRedis(USER_ID);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.REJECTED,
+                HttpMethod.PATCH,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        assertNull(redisTemplate.opsForValue().get(StatsCacheKeyUtils.keyForUser(USER_ID)));
     }
 
     @Test
@@ -453,7 +526,7 @@ public class JobApplicationIT extends BaseIT {
         HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
 
         firstJobApplication.setUserId(999L);
-        saveJobApplications(firstJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.REJECTED,
@@ -496,7 +569,7 @@ public class JobApplicationIT extends BaseIT {
         HttpEntity<Void> request = TestUtil.createRequest(null, headers);
 
         firstJobApplication.setUserId(USER_ID);
-        saveJobApplications(firstJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
         assertTrue(jobApplicationRepository.findById(firstJobApplication.getId()).isPresent());
 
         ResponseEntity<Void> response = restTemplate.exchange(
@@ -510,6 +583,29 @@ public class JobApplicationIT extends BaseIT {
 
         assertFalse(jobApplicationRepository.findById(firstJobApplication.getId()).isPresent());
         assertEquals(0, jobApplicationRepository.findAll().size());
+    }
+
+    @Test
+    public void delete_deleteStatsFromRedisCorrectly() {
+        saveStatsInRedis(USER_ID);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.DELETE,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        assertNull(redisTemplate.opsForValue().get(StatsCacheKeyUtils.keyForUser(USER_ID)));
     }
 
     @Test
@@ -541,7 +637,7 @@ public class JobApplicationIT extends BaseIT {
         HttpEntity<Void> request = TestUtil.createRequest(null, headers);
 
         firstJobApplication.setUserId(999L);
-        saveJobApplications(firstJobApplication);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
 
         ResponseEntity<ResponseError> response = restTemplate.exchange(
                 "/api/v1/job-applications/" + firstJobApplication.getId(),
@@ -577,13 +673,10 @@ public class JobApplicationIT extends BaseIT {
         assertNotNull(error.getTime());
     }
 
-    private void saveJobApplications(JobApplication... jobApplications) {
-        Arrays.stream(jobApplications)
-                .peek(el -> el.setId(null))
-                .forEach(jobApplicationRepository::save);
-    }
+    private void saveStatsInRedis(Long userId) {
+        redisTemplate.opsForValue().set(StatsCacheKeyUtils.keyForUser(userId), "someStats", Duration.ofHours(1L));
 
-    private void clearDb() {
-        jobApplicationRepository.deleteAll();
+        assertNotNull(redisTemplate.opsForValue().get(StatsCacheKeyUtils.keyForUser(USER_ID)));
+
     }
 }
