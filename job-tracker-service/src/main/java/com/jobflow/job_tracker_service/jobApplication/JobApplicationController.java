@@ -136,7 +136,7 @@ public class JobApplicationController {
                     description = "Job application details", required = true
             ) JobApplicationCreateUpdateDto dto
     ) {
-        LOGGER.debug("[PUT] Request for update job application by id: {}", id);
+        LOGGER.info("[PUT] Request for update job application by id: {}", id);
         jobApplicationService.update(id, dto);
 
         return ResponseEntity.noContent().build();
@@ -163,7 +163,7 @@ public class JobApplicationController {
             @PathVariable("id")  @Parameter(description = "Job application ID", example = "1", required = true) Long id,
             @RequestParam("status")  @Parameter(description = "Job application status", example = "APPLIED", required = true) Status status
     ) {
-        LOGGER.debug("[PATCH] Request for update job application status by id: {}, status: {}", id, status);
+        LOGGER.info("[PATCH] Request for update job application status by id: {}, status: {}", id, status);
         jobApplicationService.updateStatus(id, status);
 
         return ResponseEntity.noContent().build();
@@ -189,7 +189,7 @@ public class JobApplicationController {
     public ResponseEntity<Void> delete(
             @PathVariable("id") @Parameter(description = "Job application ID", example = "1", required = true) Long id
     ) {
-        LOGGER.debug("[DELETE] Request for delete job application by id: {}", id);
+        LOGGER.info("[DELETE] Request for delete job application by id: {}", id);
         jobApplicationService.delete(id);
 
         return ResponseEntity.noContent().build();

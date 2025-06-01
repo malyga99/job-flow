@@ -3,6 +3,7 @@ package com.jobflow.job_tracker_service.jobApplication;
 import com.jobflow.job_tracker_service.TestUtil;
 import com.jobflow.job_tracker_service.exception.JobApplicationNotFoundException;
 import com.jobflow.job_tracker_service.exception.UserDontHavePermissionException;
+import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
 import com.jobflow.job_tracker_service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -34,6 +37,9 @@ class JobApplicationServiceImplTest {
 
     @Mock
     private JobApplicationRepository jobApplicationRepository;
+
+    @Mock
+    private RedisTemplate<String, String> redisTemplate;
 
     @InjectMocks
     private JobApplicationServiceImpl jobApplicationService;
@@ -133,6 +139,7 @@ class JobApplicationServiceImplTest {
         assertEquals(firstJobApplicationDto, result);
 
         verify(jobApplicationRepository, times(1)).save(firstJobApplication);
+        verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));
     }
 
     @Test
@@ -174,6 +181,8 @@ class JobApplicationServiceImplTest {
         assertNotNull(jobApplication.getUserId());
         assertNotNull(jobApplication.getCreatedAt());
         assertNotNull(jobApplication.getUpdatedAt());
+
+        verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));
     }
 
     @Test
@@ -210,6 +219,8 @@ class JobApplicationServiceImplTest {
 
         JobApplication jobApplication = argumentCaptor.getValue();
         assertEquals(Status.REJECTED, jobApplication.getStatus());
+
+        verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));
     }
 
     @Test
@@ -242,6 +253,7 @@ class JobApplicationServiceImplTest {
 
         verify(jobApplicationRepository, times(1)).findById(1L);
         verify(jobApplicationRepository, times(1)).delete(firstJobApplication);
+        verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));
     }
 
     @Test

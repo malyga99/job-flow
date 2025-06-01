@@ -2,12 +2,14 @@ package com.jobflow.job_tracker_service.jobApplication;
 
 import com.jobflow.job_tracker_service.exception.JobApplicationNotFoundException;
 import com.jobflow.job_tracker_service.exception.UserDontHavePermissionException;
+import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
 import com.jobflow.job_tracker_service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,6 +21,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final UserService userService;
     private final JobApplicationMapper jobApplicationMapper;
     private final JobApplicationRepository jobApplicationRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Override
     public Page<JobApplicationDto> findMy(Pageable pageable) {
@@ -51,7 +54,9 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobApplication jobApplication = jobApplicationMapper.toEntity(dto, currentUserId);
         JobApplication savedJobApplication = jobApplicationRepository.save(jobApplication);
 
+        deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
         LOGGER.debug("Successfully created job application with id: {} by userId: {}", savedJobApplication.getId(), currentUserId);
+
         return jobApplicationMapper.toDto(savedJobApplication);
     }
 
@@ -66,6 +71,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         updateFields(jobApplication, dto);
         jobApplicationRepository.save(jobApplication);
 
+        deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
         LOGGER.debug("Successfully updated job application with id: {} by userId: {}", id, currentUserId);
     }
 
@@ -80,6 +86,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         jobApplication.setStatus(status);
         jobApplicationRepository.save(jobApplication);
 
+        deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
         LOGGER.debug("Successfully updated the job application status with id: {} by userId: {}", id, currentUserId);
     }
 
@@ -93,12 +100,17 @@ public class JobApplicationServiceImpl implements JobApplicationService {
 
         jobApplicationRepository.delete(jobApplication);
 
+        deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
         LOGGER.debug("Successfully deleted the job application with id: {} by userId: {}", id, userService);
     }
 
     private JobApplication findByIdOrThrow(Long id) {
         return jobApplicationRepository.findById(id)
                 .orElseThrow(() -> new JobApplicationNotFoundException("Job application with id: " + id + " not found"));
+    }
+
+    private void deleteFromCache(String cacheKey) {
+        redisTemplate.delete(cacheKey);
     }
 
     private void updateFields(JobApplication jobApplication, JobApplicationCreateUpdateDto dto) {
