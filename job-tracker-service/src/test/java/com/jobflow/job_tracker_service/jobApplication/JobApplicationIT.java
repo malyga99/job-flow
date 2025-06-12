@@ -6,8 +6,13 @@ import com.jobflow.job_tracker_service.TestPageResponse;
 import com.jobflow.job_tracker_service.TestUtil;
 import com.jobflow.job_tracker_service.handler.ResponseError;
 import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
+import com.jobflow.job_tracker_service.notification.NotificationEvent;
+import com.jobflow.job_tracker_service.notification.NotificationType;
+import com.jobflow.job_tracker_service.rabbitMQ.RabbitProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
@@ -15,7 +20,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.*;
 
 import java.time.Duration;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,6 +41,15 @@ public class JobApplicationIT extends BaseIT {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
+    @Autowired
+    private AmqpTemplate amqpTemplate;
+
+    @Autowired
+    private RabbitProperties rabbitProperties;
+
+    @Autowired
+    private AmqpAdmin amqpAdmin;
+
     private String token;
 
     private JobApplicationCreateUpdateDto createUpdateDto;
@@ -48,6 +61,8 @@ public class JobApplicationIT extends BaseIT {
     @BeforeEach
     public void setup() {
         TestUtil.clearDb(jobApplicationRepository);
+        TestUtil.clearRabit(amqpAdmin, rabbitProperties.getEmailQueueName());
+        TestUtil.clearRabit(amqpAdmin, rabbitProperties.getTelegramQueueName());
 
         createUpdateDto = TestUtil.createJobApplicationCreateUpdateDto();
         firstJobApplication = TestUtil.createJobApplication();
@@ -297,6 +312,34 @@ public class JobApplicationIT extends BaseIT {
     }
 
     @Test
+    public void create_sendNotificationEventCorrectly() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        ResponseEntity<JobApplicationDto> response = restTemplate.exchange(
+                "/api/v1/job-applications",
+                HttpMethod.POST,
+                request,
+                JobApplicationDto.class
+        );
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+
+        NotificationEvent notificationEvent = amqpTemplate.receiveAndConvert(rabbitProperties.getEmailQueueName(),
+                5000, new ParameterizedTypeReference<NotificationEvent>() {
+                });
+        assertNotNull(notificationEvent);
+        assertEquals(notificationEvent.getUserId(), USER_ID);
+        assertEquals(notificationEvent.getNotificationType(), NotificationType.EMAIL);
+        assertEquals(notificationEvent.getSubject(), "You have responded to the job application");
+        assertEquals(notificationEvent.getMessage(), String.format(
+                "You have successfully submitted a response for the %s position to %s",
+                createUpdateDto.getPosition(), createUpdateDto.getCompany()
+        ));
+    }
+
+    @Test
     public void create_withoutToken_returnUnauthorized() {
         HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto);
 
@@ -318,22 +361,9 @@ public class JobApplicationIT extends BaseIT {
 
     @Test
     public void update_updatesJobApplicationCorrectly() {
-        var dataToUpdate = JobApplicationCreateUpdateDto.builder()
-                .company("Updated company")
-                .position("Updated position")
-                .link("Updated link")
-                .source(Source.LINKEDIN)
-                .salaryMin(100)
-                .salaryMax(300)
-                .currency(Currency.RUB)
-                .status(Status.APPLIED)
-                .comment("Updated comment")
-                .appliedAt(LocalDate.now())
-                .build();
-
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
-        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(dataToUpdate, headers);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
 
         firstJobApplication.setUserId(USER_ID);
         TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
@@ -348,16 +378,16 @@ public class JobApplicationIT extends BaseIT {
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
 
         JobApplication jobApplication = jobApplicationRepository.findById(firstJobApplication.getId()).get();
-        assertEquals(dataToUpdate.getCompany(), jobApplication.getCompany());
-        assertEquals(dataToUpdate.getPosition(), jobApplication.getPosition());
-        assertEquals(dataToUpdate.getLink(), jobApplication.getLink());
-        assertEquals(dataToUpdate.getSource(), jobApplication.getSource());
-        assertEquals(dataToUpdate.getSalaryMin(), jobApplication.getSalaryMin());
-        assertEquals(dataToUpdate.getSalaryMax(), jobApplication.getSalaryMax());
-        assertEquals(dataToUpdate.getCurrency(), jobApplication.getCurrency());
-        assertEquals(dataToUpdate.getStatus(), jobApplication.getStatus());
-        assertEquals(dataToUpdate.getComment(), jobApplication.getComment());
-        assertEquals(dataToUpdate.getAppliedAt(), jobApplication.getAppliedAt());
+        assertEquals(createUpdateDto.getCompany(), jobApplication.getCompany());
+        assertEquals(createUpdateDto.getPosition(), jobApplication.getPosition());
+        assertEquals(createUpdateDto.getLink(), jobApplication.getLink());
+        assertEquals(createUpdateDto.getSource(), jobApplication.getSource());
+        assertEquals(createUpdateDto.getSalaryMin(), jobApplication.getSalaryMin());
+        assertEquals(createUpdateDto.getSalaryMax(), jobApplication.getSalaryMax());
+        assertEquals(createUpdateDto.getCurrency(), jobApplication.getCurrency());
+        assertEquals(createUpdateDto.getStatus(), jobApplication.getStatus());
+        assertEquals(createUpdateDto.getComment(), jobApplication.getComment());
+        assertEquals(createUpdateDto.getAppliedAt(), jobApplication.getAppliedAt());
         assertNotNull(jobApplication.getId());
         assertNotNull(jobApplication.getUserId());
         assertNotNull(jobApplication.getCreatedAt());
@@ -385,6 +415,38 @@ public class JobApplicationIT extends BaseIT {
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
 
         assertNull(redisTemplate.opsForValue().get(StatsCacheKeyUtils.keyForUser(USER_ID)));
+    }
+
+    @Test
+    public void update_sendNotificationEventCorrectly() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        createUpdateDto.setStatus(Status.APPLIED);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.PUT,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        NotificationEvent notificationEvent = amqpTemplate.receiveAndConvert(rabbitProperties.getTelegramQueueName(),
+                5000, new ParameterizedTypeReference<NotificationEvent>() {
+                });
+        assertNotNull(notificationEvent);
+        assertEquals(notificationEvent.getUserId(), USER_ID);
+        assertEquals(notificationEvent.getNotificationType(), NotificationType.TELEGRAM);
+        assertNull(notificationEvent.getSubject());
+        assertEquals(notificationEvent.getMessage(), String.format(
+                "The status of your %s job application has been updated: %s",
+                createUpdateDto.getPosition(), createUpdateDto.getStatus()
+        ));
     }
 
     @Test
@@ -472,6 +534,113 @@ public class JobApplicationIT extends BaseIT {
 
         JobApplication jobApplication = jobApplicationRepository.findById(firstJobApplication.getId()).get();
         assertEquals(Status.REJECTED, jobApplication.getStatus());
+    }
+
+    @Test
+    public void updateStatus_statusIsOffer_sendNotificationEventCorrectly() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.OFFER,
+                HttpMethod.PATCH,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        NotificationEvent notificationEventFromEmail = amqpTemplate.receiveAndConvert(rabbitProperties.getEmailQueueName(),
+                5000, new ParameterizedTypeReference<NotificationEvent>() {
+                });
+        NotificationEvent notificationEventFromTelegram = amqpTemplate.receiveAndConvert(rabbitProperties.getTelegramQueueName(),
+                5000, new ParameterizedTypeReference<NotificationEvent>() {
+                });
+
+        assertNotNull(notificationEventFromEmail);
+        assertEquals(notificationEventFromEmail.getUserId(), USER_ID);
+        assertEquals(notificationEventFromEmail.getNotificationType(), NotificationType.BOTH);
+        assertEquals(notificationEventFromEmail.getSubject(), "Congratulations! You have received an offer");
+        assertEquals(notificationEventFromEmail.getMessage(), String.format(
+                "You have received an offer from %s for the position of %s",
+                createUpdateDto.getCompany(), createUpdateDto.getPosition()
+        ));
+        assertNotNull(notificationEventFromTelegram);
+        assertEquals(notificationEventFromTelegram.getUserId(), USER_ID);
+        assertEquals(notificationEventFromTelegram.getNotificationType(), NotificationType.BOTH);
+        assertEquals(notificationEventFromTelegram.getSubject(), "Congratulations! You have received an offer");
+        assertEquals(notificationEventFromTelegram.getMessage(), String.format(
+                "You have received an offer from %s for the position of %s",
+                createUpdateDto.getCompany(), createUpdateDto.getPosition()
+        ));
+    }
+
+    @Test
+    public void updateStatus_statusIsRejected_sendNotificationEventCorrectly() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.REJECTED,
+                HttpMethod.PATCH,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        NotificationEvent notificationEvent = amqpTemplate.receiveAndConvert(rabbitProperties.getEmailQueueName(),
+                5000, new ParameterizedTypeReference<NotificationEvent>() {
+                });
+
+        assertNotNull(notificationEvent);
+        assertEquals(notificationEvent.getUserId(), USER_ID);
+        assertEquals(notificationEvent.getNotificationType(), NotificationType.EMAIL);
+        assertEquals(notificationEvent.getSubject(), "You job application has been rejected");
+        assertEquals(notificationEvent.getMessage(), String.format(
+                "Unfortunately, your job application for the %s position at %s has been rejected",
+                createUpdateDto.getPosition(), createUpdateDto.getCompany()
+        ));
+    }
+
+    @Test
+    public void updateStatus_anotherStatus_sendNotificationEventCorrectly() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.APPLIED,
+                HttpMethod.PATCH,
+                request,
+                Void.class
+        );
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        NotificationEvent notificationEvent = amqpTemplate.receiveAndConvert(rabbitProperties.getTelegramQueueName(),
+                5000, new ParameterizedTypeReference<NotificationEvent>() {
+                });
+
+        assertNotNull(notificationEvent);
+        assertEquals(notificationEvent.getUserId(), USER_ID);
+        assertEquals(notificationEvent.getNotificationType(), NotificationType.TELEGRAM);
+        assertNull(notificationEvent.getSubject());
+        assertEquals(notificationEvent.getMessage(), String.format(
+                "The status of your %s job application has been updated: %s",
+                createUpdateDto.getPosition(), createUpdateDto.getStatus()
+        ));
     }
 
     @Test

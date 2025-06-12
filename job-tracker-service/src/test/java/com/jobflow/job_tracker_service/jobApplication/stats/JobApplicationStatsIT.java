@@ -68,19 +68,19 @@ public class JobApplicationStatsIT extends BaseIT {
         firstJobApplication.setCompany("Google");
         firstJobApplication.setPosition("Software Engineer");
         firstJobApplication.setStatus(Status.VIEWED);
-        firstJobApplication.setAppliedAt(LocalDate.of(2025, 5, 25));
+        firstJobApplication.setAppliedAt(LocalDate.now().minusDays(6));
 
         secondJobApplication.setUserId(USER_ID);
         secondJobApplication.setCompany("google ");
         secondJobApplication.setPosition("Software Engineer");
         secondJobApplication.setStatus(Status.REJECTED);
-        secondJobApplication.setAppliedAt(LocalDate.of(2025, 5, 20));
+        secondJobApplication.setAppliedAt(LocalDate.now().minusDays(15));
 
         thirdJobApplication.setUserId(USER_ID);
         thirdJobApplication.setCompany("Amazon");
         thirdJobApplication.setPosition("Backend Developer");
         thirdJobApplication.setStatus(Status.ACCEPTED);
-        thirdJobApplication.setAppliedAt(LocalDate.of(2025, 4, 25));
+        thirdJobApplication.setAppliedAt(LocalDate.now().minusDays(40));
 
         TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication, secondJobApplication, thirdJobApplication));
 

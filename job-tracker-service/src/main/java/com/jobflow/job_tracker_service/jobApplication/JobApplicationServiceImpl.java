@@ -3,6 +3,9 @@ package com.jobflow.job_tracker_service.jobApplication;
 import com.jobflow.job_tracker_service.exception.JobApplicationNotFoundException;
 import com.jobflow.job_tracker_service.exception.UserDontHavePermissionException;
 import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
+import com.jobflow.job_tracker_service.notification.EventPublisher;
+import com.jobflow.job_tracker_service.notification.NotificationEvent;
+import com.jobflow.job_tracker_service.notification.NotificationEventFactory;
 import com.jobflow.job_tracker_service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -21,6 +24,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final UserService userService;
     private final JobApplicationMapper jobApplicationMapper;
     private final JobApplicationRepository jobApplicationRepository;
+    private final EventPublisher<NotificationEvent> eventPublisher;
+    private final NotificationEventFactory eventFactory;
     private final RedisTemplate<String, String> redisTemplate;
 
     @Override
@@ -55,6 +60,9 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobApplication savedJobApplication = jobApplicationRepository.save(jobApplication);
 
         deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
+        eventPublisher.publish(
+                eventFactory.buildForCreation(savedJobApplication)
+        );
         LOGGER.debug("Successfully created job application with id: {} by userId: {}", savedJobApplication.getId(), currentUserId);
 
         return jobApplicationMapper.toDto(savedJobApplication);
@@ -72,6 +80,9 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         jobApplicationRepository.save(jobApplication);
 
         deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
+        eventPublisher.publish(
+                eventFactory.buildForStatusUpdate(jobApplication)
+        );
         LOGGER.debug("Successfully updated job application with id: {} by userId: {}", id, currentUserId);
     }
 
@@ -87,6 +98,9 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         jobApplicationRepository.save(jobApplication);
 
         deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
+        eventPublisher.publish(
+                eventFactory.buildForStatusUpdate(jobApplication)
+        );
         LOGGER.debug("Successfully updated the job application status with id: {} by userId: {}", id, currentUserId);
     }
 
