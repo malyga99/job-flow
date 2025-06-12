@@ -4,6 +4,9 @@ import com.jobflow.job_tracker_service.TestUtil;
 import com.jobflow.job_tracker_service.exception.JobApplicationNotFoundException;
 import com.jobflow.job_tracker_service.exception.UserDontHavePermissionException;
 import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
+import com.jobflow.job_tracker_service.notification.EventPublisher;
+import com.jobflow.job_tracker_service.notification.NotificationEvent;
+import com.jobflow.job_tracker_service.notification.NotificationEventFactory;
 import com.jobflow.job_tracker_service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,12 @@ class JobApplicationServiceImplTest {
     @Mock
     private RedisTemplate<String, String> redisTemplate;
 
+    @Mock
+    private NotificationEventFactory eventFactory;
+
+    @Mock
+    private EventPublisher<NotificationEvent> eventPublisher;
+
     @InjectMocks
     private JobApplicationServiceImpl jobApplicationService;
 
@@ -53,6 +62,8 @@ class JobApplicationServiceImplTest {
     private JobApplicationDto firstJobApplicationDto;
 
     private JobApplicationDto secondJobApplicationDto;
+
+    private NotificationEvent notificationEvent;
 
     private Pageable mockPageable;
 
@@ -67,6 +78,8 @@ class JobApplicationServiceImplTest {
 
         firstJobApplicationDto = TestUtil.createJobApplicationDto();
         secondJobApplicationDto = TestUtil.createJobApplicationDto();
+
+        notificationEvent = TestUtil.createNotificationEvent();
 
         mockPageable = PageRequest.of(0, 10);
         mockPage = new PageImpl<>(List.of(firstJobApplication, secondJobApplication), mockPageable, 2);
@@ -132,12 +145,14 @@ class JobApplicationServiceImplTest {
         when(jobApplicationMapper.toEntity(createUpdateDto, 1L)).thenReturn(firstJobApplication);
         when(jobApplicationRepository.save(firstJobApplication)).thenReturn(firstJobApplication);
         when(jobApplicationMapper.toDto(firstJobApplication)).thenReturn(firstJobApplicationDto);
+        when(eventFactory.buildForCreation(firstJobApplication)).thenReturn(notificationEvent);
 
         JobApplicationDto result = jobApplicationService.create(createUpdateDto);
 
         assertNotNull(result);
         assertEquals(firstJobApplicationDto, result);
 
+        verify(eventPublisher, times(1)).publish(notificationEvent);
         verify(jobApplicationRepository, times(1)).save(firstJobApplication);
         verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));
     }
@@ -160,11 +175,14 @@ class JobApplicationServiceImplTest {
         firstJobApplication.setUserId(1L);
         when(userService.getCurrentUserId()).thenReturn(1L);
         when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(firstJobApplication));
+        when(eventFactory.buildForStatusUpdate(firstJobApplication)).thenReturn(notificationEvent);
 
         jobApplicationService.update(1L, dataToUpdate);
 
+        verify(eventPublisher, times(1)).publish(notificationEvent);
         verify(jobApplicationRepository, times(1)).findById(1L);
         verify(jobApplicationRepository, times(1)).save(argumentCaptor.capture());
+        verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));
 
         JobApplication jobApplication = argumentCaptor.getValue();
         assertEquals(dataToUpdate.getCompany(), jobApplication.getCompany());
@@ -181,8 +199,6 @@ class JobApplicationServiceImplTest {
         assertNotNull(jobApplication.getUserId());
         assertNotNull(jobApplication.getCreatedAt());
         assertNotNull(jobApplication.getUpdatedAt());
-
-        verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));
     }
 
     @Test
@@ -210,10 +226,12 @@ class JobApplicationServiceImplTest {
         firstJobApplication.setUserId(1L);
         when(userService.getCurrentUserId()).thenReturn(1L);
         when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(firstJobApplication));
+        when(eventFactory.buildForStatusUpdate(firstJobApplication)).thenReturn(notificationEvent);
         var argumentCaptor = ArgumentCaptor.forClass(JobApplication.class);
 
         jobApplicationService.updateStatus(1L, Status.REJECTED);
 
+        verify(eventPublisher, times(1)).publish(notificationEvent);
         verify(jobApplicationRepository, times(1)).findById(1L);
         verify(jobApplicationRepository, times(1)).save(argumentCaptor.capture());
 

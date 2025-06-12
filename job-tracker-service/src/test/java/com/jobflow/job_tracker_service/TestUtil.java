@@ -3,6 +3,10 @@ package com.jobflow.job_tracker_service;
 import com.jobflow.job_tracker_service.jobApplication.*;
 import com.jobflow.job_tracker_service.jobApplication.stats.JobApplicationStatsDto;
 import com.jobflow.job_tracker_service.jobApplication.stats.TopItem;
+import com.jobflow.job_tracker_service.notification.NotificationEvent;
+import com.jobflow.job_tracker_service.notification.NotificationType;
+import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -98,11 +102,24 @@ public final class TestUtil {
                 .build();
     }
 
+    public static NotificationEvent createNotificationEvent() {
+        return NotificationEvent.builder()
+                .userId(USER_ID)
+                .notificationType(NotificationType.EMAIL)
+                .subject("subject")
+                .message("message")
+                .build();
+    }
+
     public static void clearDb(JpaRepository<?, ?> repository) {
         repository.deleteAll();
     }
 
     public static <T, ID> void saveDataInDb(JpaRepository<T, ID> repository, List<T> entities) {
         repository.saveAll(entities);
+    }
+
+    public static void clearRabit(AmqpAdmin amqpAdmin, String queueName) {
+        amqpAdmin.purgeQueue(queueName);
     }
 }

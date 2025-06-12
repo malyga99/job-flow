@@ -5,6 +5,7 @@ networks:
 volumes:
   jobflow-job-tracker-pgdata:
   jobflow-job-tracker-redisdata:
+  jobflow-job-tracker-rabbitmqdata:
 
 services:
   jobflow-job-tracker-service:
@@ -21,6 +22,8 @@ services:
       jobflow-job-tracker-db:
         condition: service_healthy
       jobflow-job-tracker-redis:
+        condition: service_healthy
+      jobflow-job-tracker-rabbitmq:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]
@@ -69,6 +72,28 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    restart: always
+
+  jobflow-job-tracker-rabbitmq:
+    image: rabbitmq:3-management
+    container_name: jobflow-job-tracker-rabbitmq
+    networks:
+      - job-flow-network
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+      - RABBITMQ_NODENAME=rabbit@${RABBITMQ_HOST}
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    volumes:
+      - jobflow-job-tracker-rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: always
 
 
