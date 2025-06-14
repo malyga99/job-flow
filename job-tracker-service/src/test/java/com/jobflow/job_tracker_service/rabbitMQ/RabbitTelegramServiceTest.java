@@ -45,7 +45,7 @@ class RabbitTelegramServiceTest {
     }
 
     @Test
-    public void getType_returnEmailType() {
+    public void getType_returnTelegramType() {
         NotificationType result = rabbitTelegramService.getType();
 
         assertEquals(NotificationType.TELEGRAM, result);

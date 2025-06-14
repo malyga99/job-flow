@@ -61,8 +61,9 @@ public class JobApplicationIT extends BaseIT {
     @BeforeEach
     public void setup() {
         TestUtil.clearDb(jobApplicationRepository);
-        TestUtil.clearRabit(amqpAdmin, rabbitProperties.getEmailQueueName());
-        TestUtil.clearRabit(amqpAdmin, rabbitProperties.getTelegramQueueName());
+        TestUtil.clearRabbit(amqpAdmin, rabbitProperties.getEmailQueueName());
+        TestUtil.clearRabbit(amqpAdmin, rabbitProperties.getTelegramQueueName());
+        TestUtil.clearKeys(redisTemplate, "rate_limiter:*");
 
         createUpdateDto = TestUtil.createJobApplicationCreateUpdateDto();
         firstJobApplication = TestUtil.createJobApplication();
@@ -292,6 +293,39 @@ public class JobApplicationIT extends BaseIT {
     }
 
     @Test
+    public void create_tooManyRequests_returnTooManyRequests() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        for (int i = 0; i < 5; i++) {
+            ResponseEntity<JobApplicationDto> response = restTemplate.exchange(
+                    "/api/v1/job-applications",
+                    HttpMethod.POST,
+                    request,
+                    JobApplicationDto.class
+            );
+
+            assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications",
+                HttpMethod.POST,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many job applications created. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
     public void create_deleteStatsFromRedisCorrectly() {
         saveStatsInRedis(USER_ID);
 
@@ -392,6 +426,42 @@ public class JobApplicationIT extends BaseIT {
         assertNotNull(jobApplication.getUserId());
         assertNotNull(jobApplication.getCreatedAt());
         assertNotNull(jobApplication.getUpdatedAt());
+    }
+
+    @Test
+    public void update_tooManyRequests_returnTooManyRequests() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<JobApplicationCreateUpdateDto> request = TestUtil.createRequest(createUpdateDto, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        for (int i = 0; i < 10; i++) {
+            ResponseEntity<Void> response = restTemplate.exchange(
+                    "/api/v1/job-applications/" + firstJobApplication.getId(),
+                    HttpMethod.PUT,
+                    request,
+                    Void.class
+            );
+
+            assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.PUT,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many updates. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
     }
 
     @Test
@@ -534,6 +604,42 @@ public class JobApplicationIT extends BaseIT {
 
         JobApplication jobApplication = jobApplicationRepository.findById(firstJobApplication.getId()).get();
         assertEquals(Status.REJECTED, jobApplication.getStatus());
+    }
+
+    @Test
+    public void updateStatus_tooManyRequests_returnTooManyRequests() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+        TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+        for (int i = 0; i < 10; i++) {
+            ResponseEntity<Void> response = restTemplate.exchange(
+                    "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.REJECTED,
+                    HttpMethod.PATCH,
+                    request,
+                    Void.class
+            );
+
+            assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId() + "?status=" + Status.REJECTED,
+                HttpMethod.PATCH,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many status updates. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
     }
 
     @Test
@@ -755,6 +861,44 @@ public class JobApplicationIT extends BaseIT {
     }
 
     @Test
+    public void delete_tooManyRequests_returnTooManyRequests() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        firstJobApplication.setUserId(USER_ID);
+
+        for (int i = 0; i < 3; i++) {
+            firstJobApplication.setId(null);
+            TestUtil.saveDataInDb(jobApplicationRepository, List.of(firstJobApplication));
+
+            ResponseEntity<Void> response = restTemplate.exchange(
+                    "/api/v1/job-applications/" + firstJobApplication.getId(),
+                    HttpMethod.DELETE,
+                    request,
+                    Void.class
+            );
+
+            assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/" + firstJobApplication.getId(),
+                HttpMethod.DELETE,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many delete attempts. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
+    }
+
+    @Test
     public void delete_deleteStatsFromRedisCorrectly() {
         saveStatsInRedis(USER_ID);
 
@@ -846,6 +990,5 @@ public class JobApplicationIT extends BaseIT {
         redisTemplate.opsForValue().set(StatsCacheKeyUtils.keyForUser(userId), "someStats", Duration.ofHours(1L));
 
         assertNotNull(redisTemplate.opsForValue().get(StatsCacheKeyUtils.keyForUser(USER_ID)));
-
     }
 }

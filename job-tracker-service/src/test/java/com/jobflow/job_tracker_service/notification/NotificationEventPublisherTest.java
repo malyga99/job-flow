@@ -11,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationEventPublisherTest {
@@ -47,7 +46,7 @@ class NotificationEventPublisherTest {
     }
 
     @Test
-    public void publish_whenServiceDoesNotSupported_doesNotPublishEvent() {
+    public void publish_whenAnyServiceDoesNotSupported_doesNotPublishEvent() {
         when(emailNotificationService.supports(notificationEvent.getNotificationType())).thenReturn(true);
         when(telegramNotificationService.supports(notificationEvent.getNotificationType())).thenReturn(false);
 

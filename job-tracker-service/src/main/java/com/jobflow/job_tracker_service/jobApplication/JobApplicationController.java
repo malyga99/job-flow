@@ -90,6 +90,10 @@ public class JobApplicationController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "401", description = "Authentication exception",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))
@@ -124,6 +128,10 @@ public class JobApplicationController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "403", description = "Authorization exception, e.g user is trying to update a job application that is not his own",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))
@@ -131,7 +139,7 @@ public class JobApplicationController {
     )
     @PutMapping("/{id}")
     public ResponseEntity<Void> update(
-            @PathVariable("id")  @Parameter(description = "Job application ID", example = "1", required = true) Long id,
+            @PathVariable("id") @Parameter(description = "Job application ID", example = "1", required = true) Long id,
             @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Job application details", required = true
             ) JobApplicationCreateUpdateDto dto
@@ -153,6 +161,10 @@ public class JobApplicationController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "403", description = "Authorization exception, e.g user is trying to update a job application that is not his own",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))
@@ -160,8 +172,8 @@ public class JobApplicationController {
     )
     @PatchMapping("/{id}")
     public ResponseEntity<Void> updateStatus(
-            @PathVariable("id")  @Parameter(description = "Job application ID", example = "1", required = true) Long id,
-            @RequestParam("status")  @Parameter(description = "Job application status", example = "APPLIED", required = true) Status status
+            @PathVariable("id") @Parameter(description = "Job application ID", example = "1", required = true) Long id,
+            @RequestParam("status") @Parameter(description = "Job application status", example = "APPLIED", required = true) Status status
     ) {
         LOGGER.info("[PATCH] Request for update job application status by id: {}, status: {}", id, status);
         jobApplicationService.updateStatus(id, status);
@@ -177,6 +189,10 @@ public class JobApplicationController {
                             @Schema(implementation = Void.class))),
 
                     @ApiResponse(responseCode = "404", description = "Job application not found",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 

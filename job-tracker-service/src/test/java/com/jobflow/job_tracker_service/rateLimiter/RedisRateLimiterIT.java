@@ -1,7 +1,7 @@
-package com.jobflow.user_service.rateLimiter;
+package com.jobflow.job_tracker_service.rateLimiter;
 
-import com.jobflow.user_service.BaseIT;
-import com.jobflow.user_service.exception.TooManyRequestsException;
+import com.jobflow.job_tracker_service.BaseIT;
+import com.jobflow.job_tracker_service.exception.TooManyRequestsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -2,6 +2,7 @@ package com.jobflow.job_tracker_service.jobApplication.stats;
 
 import com.jobflow.job_tracker_service.TestUtil;
 import com.jobflow.job_tracker_service.exception.JobApplicationServiceException;
+import com.jobflow.job_tracker_service.exception.TooManyRequestsException;
 import com.jobflow.job_tracker_service.handler.GlobalHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -58,6 +60,22 @@ class JobApplicationStatsControllerTest {
                 .andExpect(jsonPath("$.topPosition.name").value(statsDto.getTopPosition().getName()))
                 .andExpect(jsonPath("$.topPosition.total").value(statsDto.getTopPosition().getTotal()))
                 .andExpect(jsonPath("$.byStatus.size()").value(statsDto.getByStatus().size()));
+
+        verify(jobApplicationStatsService, times(1)).getStats();
+    }
+
+    @Test
+    public void getStats_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too many requests");
+        when(jobApplicationStatsService.getStats()).thenThrow(tooManyRequestsException);
+
+        mockMvc.perform(get("/api/v1/job-applications/stats")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").value(tooManyRequestsException.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()));
 
         verify(jobApplicationStatsService, times(1)).getStats();
     }

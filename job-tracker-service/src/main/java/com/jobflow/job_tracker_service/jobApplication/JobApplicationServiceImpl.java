@@ -6,6 +6,7 @@ import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
 import com.jobflow.job_tracker_service.notification.EventPublisher;
 import com.jobflow.job_tracker_service.notification.NotificationEvent;
 import com.jobflow.job_tracker_service.notification.NotificationEventFactory;
+import com.jobflow.job_tracker_service.rateLimiter.RateLimiterValidator;
 import com.jobflow.job_tracker_service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -27,6 +28,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final EventPublisher<NotificationEvent> eventPublisher;
     private final NotificationEventFactory eventFactory;
     private final RedisTemplate<String, String> redisTemplate;
+    private final RateLimiterValidator rateLimiterValidator;
 
     @Override
     public Page<JobApplicationDto> findMy(Pageable pageable) {
@@ -56,6 +58,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Creating a new job application by userId: {}", currentUserId);
 
+        rateLimiterValidator.validate(JobApplicationRateLimiterAction.CREATE, String.valueOf(currentUserId));
+
         JobApplication jobApplication = jobApplicationMapper.toEntity(dto, currentUserId);
         JobApplication savedJobApplication = jobApplicationRepository.save(jobApplication);
 
@@ -63,8 +67,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         eventPublisher.publish(
                 eventFactory.buildForCreation(savedJobApplication)
         );
-        LOGGER.debug("Successfully created job application with id: {} by userId: {}", savedJobApplication.getId(), currentUserId);
 
+        LOGGER.debug("Successfully created job application with id: {} by userId: {}", savedJobApplication.getId(), currentUserId);
         return jobApplicationMapper.toDto(savedJobApplication);
     }
 
@@ -72,6 +76,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public void update(Long id, JobApplicationCreateUpdateDto dto) {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Updating job application with id: {} by userId: {}", id, currentUserId);
+
+        rateLimiterValidator.validate(JobApplicationRateLimiterAction.UPDATE, String.valueOf(currentUserId));
 
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
@@ -83,6 +89,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         eventPublisher.publish(
                 eventFactory.buildForStatusUpdate(jobApplication)
         );
+
         LOGGER.debug("Successfully updated job application with id: {} by userId: {}", id, currentUserId);
     }
 
@@ -90,6 +97,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public void updateStatus(Long id, Status status) {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Updating the job application status with id: {} by userId: {}", id, currentUserId);
+
+        rateLimiterValidator.validate(JobApplicationRateLimiterAction.UPDATE_STATUS, String.valueOf(currentUserId));
 
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
@@ -101,6 +110,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         eventPublisher.publish(
                 eventFactory.buildForStatusUpdate(jobApplication)
         );
+
         LOGGER.debug("Successfully updated the job application status with id: {} by userId: {}", id, currentUserId);
     }
 
@@ -108,6 +118,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public void delete(Long id) {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Deleting the job application with id: {} by userId: {}", id, userService);
+
+        rateLimiterValidator.validate(JobApplicationRateLimiterAction.DELETE, String.valueOf(currentUserId));
 
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
