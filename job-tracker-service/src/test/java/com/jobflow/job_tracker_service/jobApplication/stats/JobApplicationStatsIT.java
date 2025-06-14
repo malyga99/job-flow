@@ -5,9 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.job_tracker_service.BaseIT;
 import com.jobflow.job_tracker_service.JwtTestUtil;
 import com.jobflow.job_tracker_service.TestUtil;
-import com.jobflow.job_tracker_service.jobApplication.JobApplication;
-import com.jobflow.job_tracker_service.jobApplication.JobApplicationRepository;
-import com.jobflow.job_tracker_service.jobApplication.Status;
+import com.jobflow.job_tracker_service.handler.ResponseError;
+import com.jobflow.job_tracker_service.jobApplication.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +50,8 @@ public class JobApplicationStatsIT extends BaseIT {
     @BeforeEach
     public void setup() {
         TestUtil.clearDb(jobApplicationRepository);
+        TestUtil.clearKeys(redisTemplate, "jobAppStats:*");
+        TestUtil.clearKeys(redisTemplate, "rate_limiter:*");
 
         firstJobApplication = TestUtil.createJobApplication();
         secondJobApplication = TestUtil.createJobApplication();
@@ -116,5 +117,38 @@ public class JobApplicationStatsIT extends BaseIT {
 
         JobApplicationStatsDto statsDto = objectMapper.readValue(cachedStats, JobApplicationStatsDto.class);
         assertEquals(body, statsDto);
+    }
+
+    @Test
+    public void getStats_tooManyRequests_returnTooManyRequests() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = TestUtil.createRequest(null, headers);
+
+        for (int i = 0; i < 5; i++) {
+            ResponseEntity<JobApplicationStatsDto> response = restTemplate.exchange(
+                    "/api/v1/job-applications/stats",
+                    HttpMethod.GET,
+                    request,
+                    JobApplicationStatsDto.class
+            );
+
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+        }
+
+        ResponseEntity<ResponseError> response = restTemplate.exchange(
+                "/api/v1/job-applications/stats",
+                HttpMethod.GET,
+                request,
+                ResponseError.class
+        );
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+
+        ResponseError error = response.getBody();
+        assertNotNull(error);
+        assertEquals("Too many stats requests. Try again in a minute", error.getMessage());
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), error.getStatus());
+        assertNotNull(error.getTime());
     }
 }

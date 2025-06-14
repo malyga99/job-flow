@@ -7,8 +7,7 @@ import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
 import com.jobflow.job_tracker_service.notification.EventPublisher;
 import com.jobflow.job_tracker_service.notification.NotificationEvent;
 import com.jobflow.job_tracker_service.notification.NotificationEventFactory;
-import com.jobflow.job_tracker_service.rateLimiter.RateLimiterKeyUtil;
-import com.jobflow.job_tracker_service.rateLimiter.RateLimiterService;
+import com.jobflow.job_tracker_service.rateLimiter.RateLimiterValidator;
 import com.jobflow.job_tracker_service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,9 +21,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
-import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -54,7 +51,7 @@ class JobApplicationServiceImplTest {
     private EventPublisher<NotificationEvent> eventPublisher;
 
     @Mock
-    private RateLimiterService rateLimiterService;
+    private RateLimiterValidator rateLimiterValidator;
 
     @InjectMocks
     private JobApplicationServiceImpl jobApplicationService;
@@ -158,12 +155,7 @@ class JobApplicationServiceImplTest {
         assertNotNull(result);
         assertEquals(firstJobApplicationDto, result);
 
-        verify(rateLimiterService, times(1)).validateOrThrow(
-                RateLimiterKeyUtil.generateKey("create", "1"),
-                5,
-                Duration.ofMinutes(1),
-                "Too many job applications created. Try again in a minute"
-        );
+        verify(rateLimiterValidator, times(1)).validate(JobApplicationRateLimiterAction.CREATE, "1");
         verify(eventPublisher, times(1)).publish(notificationEvent);
         verify(jobApplicationRepository, times(1)).save(firstJobApplication);
         verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));
@@ -191,12 +183,7 @@ class JobApplicationServiceImplTest {
 
         jobApplicationService.update(1L, dataToUpdate);
 
-        verify(rateLimiterService, times(1)).validateOrThrow(
-                RateLimiterKeyUtil.generateKey("update", "1"),
-                10,
-                Duration.ofMinutes(1),
-                "Too many updates. Try again in a minute"
-        );
+        verify(rateLimiterValidator, times(1)).validate(JobApplicationRateLimiterAction.UPDATE, "1");
         verify(eventPublisher, times(1)).publish(notificationEvent);
         verify(jobApplicationRepository, times(1)).findById(1L);
         verify(jobApplicationRepository, times(1)).save(argumentCaptor.capture());
@@ -249,12 +236,7 @@ class JobApplicationServiceImplTest {
 
         jobApplicationService.updateStatus(1L, Status.REJECTED);
 
-        verify(rateLimiterService, times(1)).validateOrThrow(
-                RateLimiterKeyUtil.generateKey("updateStatus", "1"),
-                10,
-                Duration.ofMinutes(1),
-                "Too many status updates. Try again in a minute"
-        );
+        verify(rateLimiterValidator, times(1)).validate(JobApplicationRateLimiterAction.UPDATE_STATUS, "1");
         verify(eventPublisher, times(1)).publish(notificationEvent);
         verify(jobApplicationRepository, times(1)).findById(1L);
         verify(jobApplicationRepository, times(1)).save(argumentCaptor.capture());
@@ -293,12 +275,7 @@ class JobApplicationServiceImplTest {
 
         jobApplicationService.delete(1L);
 
-        verify(rateLimiterService, times(1)).validateOrThrow(
-                RateLimiterKeyUtil.generateKey("delete", "1"),
-                3,
-                Duration.ofMinutes(1),
-                "Too many delete attempts. Try again in a minute"
-        );
+        verify(rateLimiterValidator, times(1)).validate(JobApplicationRateLimiterAction.DELETE, "1");
         verify(jobApplicationRepository, times(1)).findById(1L);
         verify(jobApplicationRepository, times(1)).delete(firstJobApplication);
         verify(redisTemplate, times(1)).delete(StatsCacheKeyUtils.keyForUser(1L));

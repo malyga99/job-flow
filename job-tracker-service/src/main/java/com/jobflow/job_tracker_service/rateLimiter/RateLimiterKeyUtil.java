@@ -6,8 +6,8 @@ public final class RateLimiterKeyUtil {
 
     }
 
-    public static String generateKey(String endpoint, String identifier) {
-        return String.format("rate_limiter:%s:%s", endpoint, identifier);
+    public static String generateKey(String action, String identifier) {
+        return String.format("rate_limiter:%s:%s", action, identifier);
     }
 }
 

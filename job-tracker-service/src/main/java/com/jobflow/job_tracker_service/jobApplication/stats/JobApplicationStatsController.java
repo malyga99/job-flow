@@ -30,6 +30,10 @@ public class JobApplicationStatsController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = JobApplicationStatsDto.class))),
 
+                    @ApiResponse(responseCode = "429", description = "Too many requests",
+                            content = @Content(mediaType = "application/json", schema =
+                            @Schema(implementation = ResponseError.class))),
+
                     @ApiResponse(responseCode = "401", description = "Authentication exception",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))

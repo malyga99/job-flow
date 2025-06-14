@@ -1,8 +1,8 @@
 package com.jobflow.job_tracker_service.jobApplication;
 
 public enum SortField {
-    CREATED_AT ("createdAt"),
-    UPDATED_AT ("updatedAt");
+    CREATED_AT("createdAt"),
+    UPDATED_AT("updatedAt");
 
     private final String field;
 

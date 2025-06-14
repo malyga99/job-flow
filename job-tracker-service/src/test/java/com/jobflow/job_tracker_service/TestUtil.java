@@ -6,16 +6,16 @@ import com.jobflow.job_tracker_service.jobApplication.stats.TopItem;
 import com.jobflow.job_tracker_service.notification.NotificationEvent;
 import com.jobflow.job_tracker_service.notification.NotificationType;
 import org.springframework.amqp.core.AmqpAdmin;
-import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A utility class for use in unit/integration tests
@@ -119,7 +119,12 @@ public final class TestUtil {
         repository.saveAll(entities);
     }
 
-    public static void clearRabit(AmqpAdmin amqpAdmin, String queueName) {
+    public static void clearRabbit(AmqpAdmin amqpAdmin, String queueName) {
         amqpAdmin.purgeQueue(queueName);
+    }
+
+    public static void clearKeys(RedisTemplate<String, String> redisTemplate, String pattern) {
+        Set<String> keys = redisTemplate.keys(pattern);
+        redisTemplate.delete(keys);
     }
 }

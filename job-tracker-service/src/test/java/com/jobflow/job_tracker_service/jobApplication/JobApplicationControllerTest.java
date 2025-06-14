@@ -207,7 +207,6 @@ class JobApplicationControllerTest {
     }
 
 
-
     @Test
     public void create_ifSourceOtherAndSourceDetailsNull_returnBadRequest() throws Exception {
         createUpdateDto.setSource(Source.OTHER);

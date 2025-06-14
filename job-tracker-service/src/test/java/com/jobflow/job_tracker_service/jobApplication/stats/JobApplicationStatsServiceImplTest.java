@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.job_tracker_service.TestUtil;
 import com.jobflow.job_tracker_service.exception.JobApplicationServiceException;
 import com.jobflow.job_tracker_service.jobApplication.Status;
+import com.jobflow.job_tracker_service.rateLimiter.RateLimiterValidator;
 import com.jobflow.job_tracker_service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,8 +22,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class JobApplicationStatsServiceImplTest {
@@ -47,8 +48,12 @@ class JobApplicationStatsServiceImplTest {
 
     @Mock
     private PopularPositionProjection popularPositionProjection;
+
     @Mock
     private StatusCountProjection statusCountProjections;
+
+    @Mock
+    private RateLimiterValidator rateLimiterValidator;
 
     @Spy
     @InjectMocks
@@ -73,6 +78,7 @@ class JobApplicationStatsServiceImplTest {
         assertNotNull(result);
         assertEquals(statsDto, result);
 
+        verify(rateLimiterValidator, times(1)).validate(JobApplicationStatsRateLimiterAction.GET_STATS, "1");
         verify(objectMapper, times(1)).readValue("expectedJson", JobApplicationStatsDto.class);
         verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
         verifyNoInteractions(statsRepository);
@@ -80,7 +86,8 @@ class JobApplicationStatsServiceImplTest {
 
     @Test
     public void getStats_deserializeFailed_throwExc() throws JsonProcessingException {
-        var jsonException = new JsonProcessingException("Json exception"){};
+        var jsonException = new JsonProcessingException("Json exception") {
+        };
         when(userService.getCurrentUserId()).thenReturn(1L);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(StatsCacheKeyUtils.keyForUser(1L))).thenReturn("expectedJson");
@@ -124,6 +131,7 @@ class JobApplicationStatsServiceImplTest {
         assertEquals(1L, result.getTopPosition().getTotal());
         assertEquals(1L, result.getByStatus().get(Status.REJECTED));
 
+        verify(rateLimiterValidator, times(1)).validate(JobApplicationStatsRateLimiterAction.GET_STATS, "1");
         verify(objectMapper, times(1)).writeValueAsString(any(JobApplicationStatsDto.class));
         verify(valueOperations, times(1)).set(
                 StatsCacheKeyUtils.keyForUser(1L),
@@ -134,7 +142,8 @@ class JobApplicationStatsServiceImplTest {
 
     @Test
     public void getStats_serializeFailed_throwExc() throws JsonProcessingException {
-        var jsonException = new JsonProcessingException("Json exception"){};
+        var jsonException = new JsonProcessingException("Json exception") {
+        };
         when(userService.getCurrentUserId()).thenReturn(1L);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(StatsCacheKeyUtils.keyForUser(1L))).thenReturn(null);
@@ -165,6 +174,7 @@ class JobApplicationStatsServiceImplTest {
         assertNull(result.getTopPosition());
         assertEquals(1L, result.getByStatus().get(Status.REJECTED));
 
+        verify(rateLimiterValidator, times(1)).validate(JobApplicationStatsRateLimiterAction.GET_STATS, "1");
         verify(objectMapper, times(1)).writeValueAsString(any(JobApplicationStatsDto.class));
         verify(valueOperations, times(1)).set(
                 StatsCacheKeyUtils.keyForUser(1L),

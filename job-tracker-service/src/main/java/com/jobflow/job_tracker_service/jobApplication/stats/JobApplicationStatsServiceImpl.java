@@ -3,7 +3,9 @@ package com.jobflow.job_tracker_service.jobApplication.stats;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobflow.job_tracker_service.exception.JobApplicationServiceException;
+import com.jobflow.job_tracker_service.jobApplication.JobApplicationRateLimiterAction;
 import com.jobflow.job_tracker_service.jobApplication.Status;
+import com.jobflow.job_tracker_service.rateLimiter.RateLimiterValidator;
 import com.jobflow.job_tracker_service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -27,12 +29,15 @@ public class JobApplicationStatsServiceImpl implements JobApplicationStatsServic
     private final UserService userService;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final RateLimiterValidator rateLimiterValidator;
 
     @Override
     public JobApplicationStatsDto getStats() {
         Long currentUserId = userService.getCurrentUserId();
-        String cacheKey = StatsCacheKeyUtils.keyForUser(currentUserId);
         LOGGER.debug("Fetching job applications stats of the current user with id: {}", currentUserId);
+
+        rateLimiterValidator.validate(JobApplicationStatsRateLimiterAction.GET_STATS, String.valueOf(currentUserId));
+        String cacheKey = StatsCacheKeyUtils.keyForUser(currentUserId);
 
         String statsFromCache = redisTemplate.opsForValue().get(cacheKey);
         if (statsFromCache != null) {

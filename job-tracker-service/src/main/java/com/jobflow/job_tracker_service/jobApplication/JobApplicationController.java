@@ -139,7 +139,7 @@ public class JobApplicationController {
     )
     @PutMapping("/{id}")
     public ResponseEntity<Void> update(
-            @PathVariable("id")  @Parameter(description = "Job application ID", example = "1", required = true) Long id,
+            @PathVariable("id") @Parameter(description = "Job application ID", example = "1", required = true) Long id,
             @RequestBody @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Job application details", required = true
             ) JobApplicationCreateUpdateDto dto
@@ -172,8 +172,8 @@ public class JobApplicationController {
     )
     @PatchMapping("/{id}")
     public ResponseEntity<Void> updateStatus(
-            @PathVariable("id")  @Parameter(description = "Job application ID", example = "1", required = true) Long id,
-            @RequestParam("status")  @Parameter(description = "Job application status", example = "APPLIED", required = true) Status status
+            @PathVariable("id") @Parameter(description = "Job application ID", example = "1", required = true) Long id,
+            @RequestParam("status") @Parameter(description = "Job application status", example = "APPLIED", required = true) Status status
     ) {
         LOGGER.info("[PATCH] Request for update job application status by id: {}, status: {}", id, status);
         jobApplicationService.updateStatus(id, status);
