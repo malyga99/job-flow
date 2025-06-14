@@ -4,8 +4,35 @@ networks:
 
 volumes:
   jobflow-job-tracker-pgdata:
+  jobflow-job-tracker-redisdata:
+  jobflow-job-tracker-rabbitmqdata:
 
 services:
+  jobflow-job-tracker-service:
+    build:
+      context: .
+    container_name: jobflow-job-tracker-service
+    env_file:
+      - .env
+    networks:
+      - job-flow-network
+    ports:
+      - "8081:8080"
+    depends_on:
+      jobflow-job-tracker-db:
+        condition: service_healthy
+      jobflow-job-tracker-redis:
+        condition: service_healthy
+      jobflow-job-tracker-rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+
   jobflow-job-tracker-db:
     image: postgres:latest
     container_name: jobflow-job-tracker-db
@@ -27,24 +54,48 @@ services:
       start_period: 10s
     restart: always
 
-  jobflow-job-tracker-service:
-    build:
-      context: .
-    container_name: jobflow-job-tracker-service
-    env_file:
-      - .env
+  jobflow-job-tracker-redis:
+    image: redis/redis-stack:latest
+    container_name: jobflow-job-tracker-redis
     networks:
       - job-flow-network
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     ports:
-      - "8081:8080"
-    depends_on:
-      jobflow-job-tracker-db:
-        condition: service_healthy
+      - "6380:6379"
+      - "8002:8001"
+    volumes:
+      - jobflow-job-tracker-redisdata:/data
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: always
+
+  jobflow-job-tracker-rabbitmq:
+    image: rabbitmq:3-management
+    container_name: jobflow-job-tracker-rabbitmq
+    networks:
+      - job-flow-network
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+      - RABBITMQ_NODENAME=rabbit@${RABBITMQ_HOST}
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    volumes:
+      - jobflow-job-tracker-rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: always
+
+
+
 

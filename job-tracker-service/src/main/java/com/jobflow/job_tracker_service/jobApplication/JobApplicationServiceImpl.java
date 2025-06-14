@@ -2,12 +2,18 @@ package com.jobflow.job_tracker_service.jobApplication;
 
 import com.jobflow.job_tracker_service.exception.JobApplicationNotFoundException;
 import com.jobflow.job_tracker_service.exception.UserDontHavePermissionException;
+import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
+import com.jobflow.job_tracker_service.notification.EventPublisher;
+import com.jobflow.job_tracker_service.notification.NotificationEvent;
+import com.jobflow.job_tracker_service.notification.NotificationEventFactory;
+import com.jobflow.job_tracker_service.rateLimiter.RateLimiterValidator;
 import com.jobflow.job_tracker_service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,6 +25,10 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final UserService userService;
     private final JobApplicationMapper jobApplicationMapper;
     private final JobApplicationRepository jobApplicationRepository;
+    private final EventPublisher<NotificationEvent> eventPublisher;
+    private final NotificationEventFactory eventFactory;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final RateLimiterValidator rateLimiterValidator;
 
     @Override
     public Page<JobApplicationDto> findMy(Pageable pageable) {
@@ -48,8 +58,15 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Creating a new job application by userId: {}", currentUserId);
 
+        rateLimiterValidator.validate(JobApplicationRateLimiterAction.CREATE, String.valueOf(currentUserId));
+
         JobApplication jobApplication = jobApplicationMapper.toEntity(dto, currentUserId);
         JobApplication savedJobApplication = jobApplicationRepository.save(jobApplication);
+
+        deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
+        eventPublisher.publish(
+                eventFactory.buildForCreation(savedJobApplication)
+        );
 
         LOGGER.debug("Successfully created job application with id: {} by userId: {}", savedJobApplication.getId(), currentUserId);
         return jobApplicationMapper.toDto(savedJobApplication);
@@ -60,11 +77,18 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Updating job application with id: {} by userId: {}", id, currentUserId);
 
+        rateLimiterValidator.validate(JobApplicationRateLimiterAction.UPDATE, String.valueOf(currentUserId));
+
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
 
         updateFields(jobApplication, dto);
         jobApplicationRepository.save(jobApplication);
+
+        deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
+        eventPublisher.publish(
+                eventFactory.buildForStatusUpdate(jobApplication)
+        );
 
         LOGGER.debug("Successfully updated job application with id: {} by userId: {}", id, currentUserId);
     }
@@ -74,11 +98,18 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Updating the job application status with id: {} by userId: {}", id, currentUserId);
 
+        rateLimiterValidator.validate(JobApplicationRateLimiterAction.UPDATE_STATUS, String.valueOf(currentUserId));
+
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
 
         jobApplication.setStatus(status);
         jobApplicationRepository.save(jobApplication);
+
+        deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
+        eventPublisher.publish(
+                eventFactory.buildForStatusUpdate(jobApplication)
+        );
 
         LOGGER.debug("Successfully updated the job application status with id: {} by userId: {}", id, currentUserId);
     }
@@ -88,17 +119,24 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Deleting the job application with id: {} by userId: {}", id, userService);
 
+        rateLimiterValidator.validate(JobApplicationRateLimiterAction.DELETE, String.valueOf(currentUserId));
+
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
 
         jobApplicationRepository.delete(jobApplication);
 
+        deleteFromCache(StatsCacheKeyUtils.keyForUser(currentUserId));
         LOGGER.debug("Successfully deleted the job application with id: {} by userId: {}", id, userService);
     }
 
     private JobApplication findByIdOrThrow(Long id) {
         return jobApplicationRepository.findById(id)
                 .orElseThrow(() -> new JobApplicationNotFoundException("Job application with id: " + id + " not found"));
+    }
+
+    private void deleteFromCache(String cacheKey) {
+        redisTemplate.delete(cacheKey);
     }
 
     private void updateFields(JobApplication jobApplication, JobApplicationCreateUpdateDto dto) {
