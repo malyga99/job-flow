@@ -6,6 +6,8 @@ import com.jobflow.job_tracker_service.jobApplication.stats.StatsCacheKeyUtils;
 import com.jobflow.job_tracker_service.notification.EventPublisher;
 import com.jobflow.job_tracker_service.notification.NotificationEvent;
 import com.jobflow.job_tracker_service.notification.NotificationEventFactory;
+import com.jobflow.job_tracker_service.rateLimiter.RateLimiterKeyUtil;
+import com.jobflow.job_tracker_service.rateLimiter.RateLimiterService;
 import com.jobflow.job_tracker_service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -14,6 +16,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +31,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final EventPublisher<NotificationEvent> eventPublisher;
     private final NotificationEventFactory eventFactory;
     private final RedisTemplate<String, String> redisTemplate;
+    private final RateLimiterService rateLimiterService;
 
     @Override
     public Page<JobApplicationDto> findMy(Pageable pageable) {
@@ -56,6 +61,13 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Creating a new job application by userId: {}", currentUserId);
 
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("create", String.valueOf(currentUserId)),
+                5,
+                Duration.ofMinutes(1),
+                "Too many job applications created. Try again in a minute"
+        );
+
         JobApplication jobApplication = jobApplicationMapper.toEntity(dto, currentUserId);
         JobApplication savedJobApplication = jobApplicationRepository.save(jobApplication);
 
@@ -63,8 +75,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         eventPublisher.publish(
                 eventFactory.buildForCreation(savedJobApplication)
         );
-        LOGGER.debug("Successfully created job application with id: {} by userId: {}", savedJobApplication.getId(), currentUserId);
 
+        LOGGER.debug("Successfully created job application with id: {} by userId: {}", savedJobApplication.getId(), currentUserId);
         return jobApplicationMapper.toDto(savedJobApplication);
     }
 
@@ -72,6 +84,13 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public void update(Long id, JobApplicationCreateUpdateDto dto) {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Updating job application with id: {} by userId: {}", id, currentUserId);
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("update", String.valueOf(currentUserId)),
+                10,
+                Duration.ofMinutes(1),
+                "Too many updates. Try again in a minute"
+        );
 
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
@@ -83,6 +102,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         eventPublisher.publish(
                 eventFactory.buildForStatusUpdate(jobApplication)
         );
+
         LOGGER.debug("Successfully updated job application with id: {} by userId: {}", id, currentUserId);
     }
 
@@ -90,6 +110,13 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public void updateStatus(Long id, Status status) {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Updating the job application status with id: {} by userId: {}", id, currentUserId);
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("updateStatus", String.valueOf(currentUserId)),
+                10,
+                Duration.ofMinutes(1),
+                "Too many status updates. Try again in a minute"
+        );
 
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);
@@ -101,6 +128,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         eventPublisher.publish(
                 eventFactory.buildForStatusUpdate(jobApplication)
         );
+
         LOGGER.debug("Successfully updated the job application status with id: {} by userId: {}", id, currentUserId);
     }
 
@@ -108,6 +136,13 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public void delete(Long id) {
         Long currentUserId = userService.getCurrentUserId();
         LOGGER.debug("Deleting the job application with id: {} by userId: {}", id, userService);
+
+        rateLimiterService.validateOrThrow(
+                RateLimiterKeyUtil.generateKey("delete", String.valueOf(currentUserId)),
+                3,
+                Duration.ofMinutes(1),
+                "Too many delete attempts. Try again in a minute"
+        );
 
         JobApplication jobApplication = findByIdOrThrow(id);
         checkUserPermissions(currentUserId, jobApplication);

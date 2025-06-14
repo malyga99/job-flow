@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.jobflow.job_tracker_service.TestUtil;
 import com.jobflow.job_tracker_service.exception.JobApplicationNotFoundException;
+import com.jobflow.job_tracker_service.exception.TooManyRequestsException;
 import com.jobflow.job_tracker_service.exception.UserDontHavePermissionException;
 import com.jobflow.job_tracker_service.handler.GlobalHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -205,6 +206,8 @@ class JobApplicationControllerTest {
         verifyNoInteractions(jobApplicationService);
     }
 
+
+
     @Test
     public void create_ifSourceOtherAndSourceDetailsNull_returnBadRequest() throws Exception {
         createUpdateDto.setSource(Source.OTHER);
@@ -317,6 +320,23 @@ class JobApplicationControllerTest {
     }
 
     @Test
+    public void create_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too many requests");
+        when(jobApplicationService.create(createUpdateDto)).thenThrow(tooManyRequestsException);
+
+        mockMvc.perform(post("/api/v1/job-applications")
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(createUpdateDtoJson))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").value(tooManyRequestsException.getMessage()))
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()));
+
+        verify(jobApplicationService, times(1)).create(createUpdateDto);
+    }
+
+    @Test
     public void update_updateJobApplication() throws Exception {
         doNothing().when(jobApplicationService).update(1L, createUpdateDto);
 
@@ -346,6 +366,23 @@ class JobApplicationControllerTest {
                 .andExpect(jsonPath("$.status").value(HttpStatus.BAD_REQUEST.value()));
 
         verifyNoInteractions(jobApplicationService);
+    }
+
+    @Test
+    public void update_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too many requests");
+        doThrow(tooManyRequestsException).when(jobApplicationService).update(1L, createUpdateDto);
+
+        mockMvc.perform(put("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON)
+                        .content(createUpdateDtoJson))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()));
+
+        verify(jobApplicationService, times(1)).update(1L, createUpdateDto);
     }
 
     @Test
@@ -396,6 +433,23 @@ class JobApplicationControllerTest {
     }
 
     @Test
+    public void updateStatus_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too many requests");
+        doThrow(tooManyRequestsException).when(jobApplicationService).updateStatus(1L, Status.APPLIED);
+
+        mockMvc.perform(patch("/api/v1/job-applications/{id}", 1L)
+                        .param("status", Status.APPLIED.toString())
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()));
+
+        verify(jobApplicationService, times(1)).updateStatus(1L, Status.APPLIED);
+    }
+
+    @Test
     public void updateStatus_jobApplicationNotFound_returnNotFound() throws Exception {
         var jobApplicationNotFound = new JobApplicationNotFoundException("Job application not found");
         doThrow(jobApplicationNotFound).when(jobApplicationService).updateStatus(1L, Status.APPLIED);
@@ -437,6 +491,22 @@ class JobApplicationControllerTest {
                         .contentType(APPLICATION_JSON)
                         .accept(APPLICATION_JSON))
                 .andExpect(status().isNoContent());
+
+        verify(jobApplicationService, times(1)).delete(1L);
+    }
+
+    @Test
+    public void delete_tooManyRequests_returnTooManyRequests() throws Exception {
+        var tooManyRequestsException = new TooManyRequestsException("Too many requests");
+        doThrow(tooManyRequestsException).when(jobApplicationService).delete(1L);
+
+        mockMvc.perform(delete("/api/v1/job-applications/{id}", 1L)
+                        .contentType(APPLICATION_JSON)
+                        .accept(APPLICATION_JSON))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.time").exists())
+                .andExpect(jsonPath("$.status").value(HttpStatus.TOO_MANY_REQUESTS.value()));
 
         verify(jobApplicationService, times(1)).delete(1L);
     }
