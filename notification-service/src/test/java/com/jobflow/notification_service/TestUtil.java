@@ -2,6 +2,7 @@ package com.jobflow.notification_service;
 
 import com.jobflow.notification_service.notification.NotificationEvent;
 import com.jobflow.notification_service.notification.NotificationType;
+import com.jobflow.notification_service.user.UserInfo;
 
 /**
  * A utility class for use in unit/integration tests
@@ -21,6 +22,13 @@ public final class TestUtil {
                 .notificationType(NotificationType.EMAIL)
                 .subject("subject")
                 .message("message")
+                .build();
+    }
+
+    public static UserInfo createUserInfo() {
+        return UserInfo.builder()
+                .email("IvanIvanov@gmail.com")
+                .telegramChatId("123")
                 .build();
     }
 }

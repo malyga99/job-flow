@@ -14,13 +14,13 @@ import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
-class RabbitEmailServiceTest {
+class RabbitEmailConsumerTest {
 
     @Mock
     private NotificationService notificationService;
 
     @InjectMocks
-    private RabbitEmailService rabbitEmailService;
+    private RabbitEmailConsumer emailConsumer;
 
     private NotificationEvent notificationEvent;
 
@@ -30,10 +30,9 @@ class RabbitEmailServiceTest {
     }
 
     @Test
-    public void consume_consumeEventSuccessfully() {
-        rabbitEmailService.consume(notificationEvent);
+    public void consume_consumeNotificationEvent() {
+        emailConsumer.consume(notificationEvent);
 
         verify(notificationService, times(1)).send(notificationEvent);
     }
-
 }

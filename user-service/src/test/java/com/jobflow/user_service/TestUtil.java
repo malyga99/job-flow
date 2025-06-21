@@ -11,6 +11,7 @@ import com.jobflow.user_service.register.RegisterRequest;
 import com.jobflow.user_service.register.ResendCodeRequest;
 import com.jobflow.user_service.user.Role;
 import com.jobflow.user_service.user.User;
+import com.jobflow.user_service.user.UserInfoDto;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.LinkedMultiValueMap;
@@ -62,6 +63,10 @@ public final class TestUtil {
         return createRequest(request, null);
     }
 
+    public static <T> HttpEntity<T> createRequest(HttpHeaders headers) {
+        return createRequest(null, headers);
+    }
+
     public static AuthenticationRequest createAuthRequest() {
         return new AuthenticationRequest(LOGIN, PASSWORD);
     }
@@ -108,6 +113,13 @@ public final class TestUtil {
                 .password(PASSWORD)
                 .role(Role.ROLE_USER)
                 .authProvider(AuthProvider.LOCAL)
+                .build();
+    }
+
+    public static UserInfoDto createUserInfo() {
+        return UserInfoDto.builder()
+                .email(LOGIN)
+                .telegramChatId("123")
                 .build();
     }
 }
