@@ -1,7 +1,7 @@
 package com.jobflow.notification_service.rabbitMQ;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -39,5 +39,38 @@ public class RabbitConfiguration {
         rabbitTemplate.setMessageConverter(messageConverter());
 
         return rabbitTemplate;
+    }
+
+    @Bean
+    public Queue emailQueue() {
+        return new Queue(rabbitProperties.getEmailQueueName(), true);
+    }
+
+    @Bean
+    public Queue telegramQueue() {
+        return new Queue(rabbitProperties.getTelegramQueueName(), true);
+    }
+
+    @Bean
+    public Exchange exchange() {
+        return new DirectExchange(rabbitProperties.getExchangeName(), true, false);
+    }
+
+    @Bean
+    public Binding emailQueueBinding() {
+        return BindingBuilder
+                .bind(emailQueue())
+                .to(exchange())
+                .with(rabbitProperties.getEmailQueueRoutingKey())
+                .noargs();
+    }
+
+    @Bean
+    public Binding telegramQueueBinding() {
+        return BindingBuilder
+                .bind(telegramQueue())
+                .to(exchange())
+                .with(rabbitProperties.getTelegramQueueRoutingKey())
+                .noargs();
     }
 }

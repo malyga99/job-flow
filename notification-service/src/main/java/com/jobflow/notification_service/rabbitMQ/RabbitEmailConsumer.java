@@ -2,19 +2,25 @@ package com.jobflow.notification_service.rabbitMQ;
 
 import com.jobflow.notification_service.notification.NotificationEvent;
 import com.jobflow.notification_service.notification.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 
 @Service
-public class RabbitEmailService extends RabbitNotificationService {
+public class RabbitEmailConsumer extends RabbitNotificationConsumer {
 
-    public RabbitEmailService(NotificationService notificationService) {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RabbitEmailConsumer.class);
+
+    public RabbitEmailConsumer(NotificationService notificationService) {
         super(notificationService);
     }
 
     @RabbitListener(queues = {"${spring.rabbitmq.email-queue-name}"})
     @Override
     public void consume(NotificationEvent notificationEvent) {
+        LOGGER.debug("Consuming notification event from Email queue: {}", notificationEvent);
+
         notificationService.send(notificationEvent);
     }
 }

@@ -48,6 +48,14 @@ public class GlobalHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseError);
     }
 
+    @ExceptionHandler(InvalidApiKeyException.class)
+    public ResponseEntity<ResponseError> invalidApiKeyExcHandler(InvalidApiKeyException exc) {
+        LOGGER.error("[Invalid Api Key Exception]: {}", exc.getMessage());
+        ResponseError responseError = ResponseError.buildResponseError(exc.getMessage(), HttpStatus.UNAUTHORIZED.value());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseError);
+    }
+
     @ExceptionHandler(EmailServiceException.class)
     public ResponseEntity<ResponseError> emailServiceExcHandler(EmailServiceException exc) {
         LOGGER.error("[Email Service Exception]: {}", exc.getMessage());

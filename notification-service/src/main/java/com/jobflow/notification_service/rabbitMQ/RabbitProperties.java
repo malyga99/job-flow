@@ -19,8 +19,14 @@ public class RabbitProperties {
 
     private String password;
 
+    private String exchangeName;
+
     private String emailQueueName;
 
     private String telegramQueueName;
+
+    private String emailQueueRoutingKey;
+
+    private String telegramQueueRoutingKey;
 }
 
