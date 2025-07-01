@@ -2,7 +2,13 @@ package com.jobflow.notification_service;
 
 import com.jobflow.notification_service.notification.NotificationEvent;
 import com.jobflow.notification_service.notification.NotificationType;
+import com.jobflow.notification_service.telegram.TelegramChat;
+import com.jobflow.notification_service.telegram.TelegramMessage;
+import com.jobflow.notification_service.telegram.TelegramUpdate;
+import com.jobflow.notification_service.telegram.TelegramUser;
 import com.jobflow.notification_service.user.UserInfo;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 
 /**
  * A utility class for use in unit/integration tests
@@ -14,6 +20,10 @@ public final class TestUtil {
 
     private TestUtil() {
 
+    }
+
+    public static <T> HttpEntity<T> createRequest(T request, HttpHeaders headers) {
+        return new HttpEntity<>(request, headers);
     }
 
     public static NotificationEvent createNotificationEvent() {
@@ -28,7 +38,28 @@ public final class TestUtil {
     public static UserInfo createUserInfo() {
         return UserInfo.builder()
                 .email("IvanIvanov@gmail.com")
-                .telegramChatId("123")
+                .telegramChatId(1L)
+                .build();
+    }
+
+    public static TelegramUpdate createTelegramUpdate() {
+        TelegramChat chat = TelegramChat.builder()
+                .id(1L)
+                .type("private")
+                .build();
+        TelegramUser user = TelegramUser.builder()
+                .id(1L)
+                .is_bot(Boolean.FALSE)
+                .first_name("Ivan")
+                .build();
+        TelegramMessage message = TelegramMessage.builder()
+                .text("some-text")
+                .chat(chat)
+                .from(user)
+                .build();
+
+        return TelegramUpdate.builder()
+                .message(message)
                 .build();
     }
 }

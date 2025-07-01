@@ -2,6 +2,7 @@ package com.jobflow.notification_service.user;
 
 import com.jobflow.notification_service.TestUtil;
 import com.jobflow.notification_service.exception.UserClientException;
+import com.jobflow.notification_service.telegram.TelegramChatLinkRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +34,10 @@ class RestUserClientTest {
     @BeforeEach
     public void setup() {
         userInfo = TestUtil.createUserInfo();
+
+        when(userServiceProperties.getApiKey()).thenReturn("test-key");
+        when(userServiceProperties.getHost()).thenReturn("localhost");
+        when(userServiceProperties.getPort()).thenReturn("8080");
     }
 
     @Test
@@ -40,9 +45,6 @@ class RestUserClientTest {
         ResponseEntity<UserInfo> response = new ResponseEntity<>(userInfo, HttpStatus.OK);
         ArgumentCaptor<HttpEntity<Void>> captor = ArgumentCaptor.forClass(HttpEntity.class);
 
-        when(userServiceProperties.getApiKey()).thenReturn("test-key");
-        when(userServiceProperties.getHost()).thenReturn("localhost");
-        when(userServiceProperties.getPort()).thenReturn("8080");
         when(restTemplate.exchange(
                 eq("http://localhost:8080/api/v1/users/info?userId=1"),
                 eq(HttpMethod.GET),
@@ -70,9 +72,6 @@ class RestUserClientTest {
     public void getUserInfo_ifFailedToFetch_throwExc() {
         var httpStatusCodeException = new HttpStatusCodeException(HttpStatus.UNAUTHORIZED){};
 
-        when(userServiceProperties.getApiKey()).thenReturn("test-key");
-        when(userServiceProperties.getHost()).thenReturn("localhost");
-        when(userServiceProperties.getPort()).thenReturn("8080");
         when(restTemplate.exchange(
                 eq("http://localhost:8080/api/v1/users/info?userId=1"),
                 eq(HttpMethod.GET),
@@ -82,6 +81,46 @@ class RestUserClientTest {
 
         var userClientException = assertThrows(UserClientException.class, () -> restUserClient.getUserInfo(1L));
         assertEquals("Failed to fetch user info, status: " + httpStatusCodeException.getStatusCode(),
+                userClientException.getMessage());
+    }
+
+    @Test
+    public void linkChatId_successfullyLinkChatId() {
+        ArgumentCaptor<HttpEntity<TelegramChatLinkRequest>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+
+        restUserClient.linkChatId(1L, 1L);
+
+        verify(restTemplate, times(1)).exchange(
+                eq("http://localhost:8080/api/v1/users/telegram"),
+                eq(HttpMethod.POST),
+                captor.capture(),
+                eq(Void.class)
+        );
+
+        HttpEntity<TelegramChatLinkRequest> request = captor.getValue();
+
+        TelegramChatLinkRequest body = request.getBody();
+        assertNotNull(body);
+        assertEquals(1L, body.getUserId());
+        assertEquals(1L, body.getChatId());
+
+        HttpHeaders headers = request.getHeaders();
+        assertEquals("test-key", headers.getFirst("X-API-Key"));
+    }
+
+    @Test
+    public void linkChatId_ifFailedToLink_throwExc() {
+        var httpStatusCodeException = new HttpStatusCodeException(HttpStatus.UNAUTHORIZED){};
+
+        when(restTemplate.exchange(
+                eq("http://localhost:8080/api/v1/users/telegram"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Void.class)
+        )).thenThrow(httpStatusCodeException);
+
+        var userClientException = assertThrows(UserClientException.class, () -> restUserClient.linkChatId(1L, 1L));
+        assertEquals("Failed to link telegram, status: " + httpStatusCodeException.getStatusCode(),
                 userClientException.getMessage());
     }
 

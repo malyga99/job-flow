@@ -35,12 +35,16 @@ class UserServiceImplTest {
 
     private User user;
 
+    private TelegramChatLinkRequest linkRequest;
+
     @BeforeEach
     public void setup() {
         SecurityContextHolder.setContext(securityContext);
 
         userService = new UserServiceImpl(userRepository, "test-key");
         user = TestUtil.createUser();
+
+        linkRequest = TestUtil.createLinkRequest();
     }
 
     @Test
@@ -85,7 +89,7 @@ class UserServiceImplTest {
 
         assertNotNull(result);
         assertEquals(user.getLogin(), result.getEmail());
-        assertNull(result.getTelegramChatId());
+        assertEquals(user.getTelegramChatId(), result.getTelegramChatId());
     }
 
     @Test
@@ -100,6 +104,44 @@ class UserServiceImplTest {
         when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
         var exc = assertThrows(UserNotFoundException.class, () -> userService.getUserInfo(1L, "test-key"));
+
+        assertEquals("User with id: 1 not found", exc.getMessage());
+    }
+
+    @Test
+    public void linkTelegram_linkTelegramSuccessfully() {
+        user.setTelegramChatId(null);
+        when(userRepository.findById(linkRequest.getUserId())).thenReturn(Optional.of(user));
+
+        userService.linkTelegram(linkRequest, "test-key");
+
+        assertEquals(linkRequest.getChatId(), user.getTelegramChatId());
+        verify(userRepository, times(1)).save(user);
+    }
+
+    @Test
+    public void linkTelegram_alreadyLinked_doesNotLink() {
+        user.setTelegramChatId(999L);
+        when(userRepository.findById(linkRequest.getUserId())).thenReturn(Optional.of(user));
+
+        userService.linkTelegram(linkRequest, "test-key");
+
+        assertEquals(999L, user.getTelegramChatId());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    public void linkTelegram_invalidApiKey_throwExc() {
+        var exc = assertThrows(InvalidApiKeyException.class, () -> userService.linkTelegram(linkRequest, "invalid-key"));
+
+        assertEquals("Api key: invalid-key invalid", exc.getMessage());
+    }
+
+    @Test
+    public void linkTelegram_userNotFound_throwExc() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        var exc = assertThrows(UserNotFoundException.class, () -> userService.linkTelegram(linkRequest, "test-key"));
 
         assertEquals("User with id: 1 not found", exc.getMessage());
     }

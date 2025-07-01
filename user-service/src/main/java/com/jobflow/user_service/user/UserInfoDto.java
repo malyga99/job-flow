@@ -17,5 +17,5 @@ public class UserInfoDto {
     private String email;
 
     @Schema(description = "Telegram chat ID", example = "123")
-    private String telegramChatId;
+    private Long telegramChatId;
 }
