@@ -1,9 +1,9 @@
-package com.jobflow.job_tracker_service.jwt;
+package com.jobflow.notification_service.jwt;
 
-import com.jobflow.job_tracker_service.TestUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import org.junit.Before;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,8 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.security.Key;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 class JwtServiceImplTest {
@@ -22,12 +21,9 @@ class JwtServiceImplTest {
 
     private JwtServiceImpl jwtService;
 
-
     @BeforeEach
     public void setup() {
-        jwtService = new JwtServiceImpl(
-                SECRET_KEY
-        );
+        jwtService = new JwtServiceImpl(SECRET_KEY);
     }
 
     @Test

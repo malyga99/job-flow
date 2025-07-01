@@ -1,4 +1,4 @@
-package com.jobflow.job_tracker_service.openApi;
+package com.jobflow.notification_service.openApi;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Contact;
@@ -8,11 +8,11 @@ import org.springframework.context.annotation.Configuration;
 
 @OpenAPIDefinition(
         servers = @Server(
-                url = "http://localhost:8081"
+                url = "http://localhost:8082"
         ),
         info = @Info(
-                title = "Job Tracker service",
-                description = "Job Tracker service API documentation",
+                title = "Notification service",
+                description = "Notification service API documentation",
                 version = "1.0.0",
                 contact = @Contact(
                         name = "Mikhail Malygin",
