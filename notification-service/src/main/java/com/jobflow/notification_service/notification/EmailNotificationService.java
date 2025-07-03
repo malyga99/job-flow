@@ -19,9 +19,10 @@ public class EmailNotificationService implements NotificationService {
 
     @Override
     public void send(NotificationEvent notificationEvent) {
-        LOGGER.debug("Sending notification event to user with id: {}", notificationEvent.getUserId());
+        Long userId = notificationEvent.getUserId();
+        LOGGER.debug("Sending notification event to user with id: {}", userId);
 
-        UserInfo userInfo = userClient.getUserInfo(notificationEvent.getUserId());
+        UserInfo userInfo = userClient.getUserInfo(userId);
         String email = userInfo.getEmail();
 
         if (email != null) {
@@ -32,9 +33,9 @@ public class EmailNotificationService implements NotificationService {
             );
 
             LOGGER.debug("Successfully sent notification event to user with id: {}, email: {}",
-                    notificationEvent.getUserId(), email);
+                    userId, email);
         } else {
-            LOGGER.debug("Email was not found. Notification event not sent to user with id: {}", notificationEvent.getUserId());
+            LOGGER.debug("Email was not found. Notification event not sent to user with id: {}", userId);
         }
     }
 }
