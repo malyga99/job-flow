@@ -9,20 +9,20 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Service
-public class RabbitEmailConsumer extends RabbitNotificationConsumer {
+public class RabbitTelegramConsumer extends RabbitNotificationConsumer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RabbitEmailConsumer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RabbitTelegramConsumer.class);
 
-    public RabbitEmailConsumer(
-            @Qualifier("emailNotificationService") NotificationService notificationService
+    public RabbitTelegramConsumer(
+            @Qualifier("telegramNotificationService") NotificationService notificationService
     ) {
         super(notificationService);
     }
 
-    @RabbitListener(queues = {"${spring.rabbitmq.email-queue-name}"})
+    @RabbitListener(queues = {"${spring.rabbitmq.telegram-queue-name}"})
     @Override
     public void consume(NotificationEvent notificationEvent) {
-        LOGGER.debug("Consuming notification event from Email queue: {}", notificationEvent);
+        LOGGER.debug("Consuming notification event from Telegram queue: {}", notificationEvent);
 
         notificationService.send(notificationEvent);
     }

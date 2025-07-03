@@ -31,11 +31,11 @@ public class TelegramIT extends BaseIT {
     @Autowired
     private UserServiceProperties userServiceProperties;
 
+    @Autowired
+    private TelegramProperties telegramProperties;
+
     @MockitoBean
     private RestTemplate restTemplate;
-
-    @Value("${telegram.bot.secret-token}")
-    private String token;
 
     private TelegramUpdate telegramUpdate;
 
@@ -54,7 +54,7 @@ public class TelegramIT extends BaseIT {
         ArgumentCaptor<HttpEntity<TelegramChatLinkRequest>> captor = ArgumentCaptor.forClass(HttpEntity.class);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Telegram-Bot-Api-Secret-Token", token);
+        headers.set("X-Telegram-Bot-Api-Secret-Token", telegramProperties.getBotSecretToken());
         HttpEntity<TelegramUpdate> request = TestUtil.createRequest(telegramUpdate, headers);
 
         ResponseEntity<Void> response = testRestTemplate.exchange(
@@ -91,7 +91,7 @@ public class TelegramIT extends BaseIT {
         telegramUpdate.getMessage().getChat().setId(1L);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Telegram-Bot-Api-Secret-Token", token);
+        headers.set("X-Telegram-Bot-Api-Secret-Token", telegramProperties.getBotSecretToken());
         HttpEntity<TelegramUpdate> request = TestUtil.createRequest(telegramUpdate, headers);
 
         String url = String.format("http://%s:%s/api/v1/users",
