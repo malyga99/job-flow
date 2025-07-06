@@ -3,39 +3,37 @@ package com.jobflow.notification_service.notification;
 import com.jobflow.notification_service.email.EmailService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
-import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
-public class EmailNotificationService implements NotificationService {
+public class EmailNotificationService extends AbstractNotificationService<String> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(EmailNotificationService.class);
-
-    private final UserClient userClient;
     private final EmailService emailService;
 
+    public EmailNotificationService(
+            UserClient userClient,
+            NotificationHistoryRepository notificationHistoryRepository,
+            EmailService emailService) {
+        super(userClient, notificationHistoryRepository);
+        this.emailService = emailService;
+    }
+
     @Override
-    public void send(NotificationEvent notificationEvent) {
-        Long userId = notificationEvent.getUserId();
-        LOGGER.debug("Sending notification event to user with id: {}", userId);
+    protected String extractContact(UserInfo userInfo) {
+        return userInfo.getEmail();
+    }
 
-        UserInfo userInfo = userClient.getUserInfo(userId);
-        String email = userInfo.getEmail();
+    @Override
+    protected void sendNotification(String contact, NotificationEvent notificationEvent) {
+        emailService.send(
+                contact,
+                notificationEvent.getSubject(),
+                notificationEvent.getMessage()
+        );
+    }
 
-        if (email != null) {
-            emailService.send(
-                    email,
-                    notificationEvent.getSubject(),
-                    notificationEvent.getMessage()
-            );
-
-            LOGGER.debug("Successfully sent notification event to user with id: {}, email: {}",
-                    userId, email);
-        } else {
-            LOGGER.debug("Email was not found. Notification event not sent to user with id: {}", userId);
-        }
+    @Override
+    protected NotificationType getNotificationType() {
+        return NotificationType.EMAIL;
     }
 }

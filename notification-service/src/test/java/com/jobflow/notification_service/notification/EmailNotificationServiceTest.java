@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -18,6 +19,9 @@ class EmailNotificationServiceTest {
 
     @Mock
     private UserClient userClient;
+
+    @Mock
+    private NotificationHistoryRepository notificationHistoryRepository;
 
     @Mock
     private EmailService emailService;
@@ -37,10 +41,15 @@ class EmailNotificationServiceTest {
     }
 
     @Test
-    public void send_sendNotificationEvent() {
-        when(userClient.getUserInfo(notificationEvent.getUserId())).thenReturn(userInfo);
+    public void extractContact_extractEmail() {
+        String email = emailNotificationService.extractContact(userInfo);
 
-        emailNotificationService.send(notificationEvent);
+        assertEquals(userInfo.getEmail(), email);
+    }
+
+    @Test
+    public void sendNotification_delegateToEmailService() {
+        emailNotificationService.sendNotification(userInfo.getEmail(), notificationEvent);
 
         verify(emailService, times(1)).send(
                 userInfo.getEmail(),
@@ -50,13 +59,11 @@ class EmailNotificationServiceTest {
     }
 
     @Test
-    public void send_withoutEmail_doesNotSendNotificationEvent() {
-        userInfo.setEmail(null);
-        when(userClient.getUserInfo(notificationEvent.getUserId())).thenReturn(userInfo);
+    public void getNotificationType_returnEmail() {
+        NotificationType notificationType = emailNotificationService.getNotificationType();
 
-        emailNotificationService.send(notificationEvent);
-
-        verify(emailService, never()).send(anyString(), anyString(), anyString());
+        assertEquals(NotificationType.EMAIL, notificationType);
     }
+
 
 }

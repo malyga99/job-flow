@@ -7,6 +7,7 @@ import com.jobflow.notification_service.telegram.TelegramMessage;
 import com.jobflow.notification_service.telegram.TelegramUpdate;
 import com.jobflow.notification_service.telegram.TelegramUser;
 import com.jobflow.notification_service.user.UserInfo;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 
@@ -61,5 +62,9 @@ public final class TestUtil {
         return TelegramUpdate.builder()
                 .message(message)
                 .build();
+    }
+
+    public static void clearDb(JpaRepository<?, ?> repository) {
+        repository.deleteAll();
     }
 }

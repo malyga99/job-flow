@@ -47,7 +47,8 @@ public class RestUserClient implements UserClient {
             LOGGER.debug("Successfully fetched user info by userId: {}", userId);
             return response.getBody();
         } catch (HttpStatusCodeException e) {
-            throw new UserClientException("Failed to fetch user info, status: " + e.getStatusCode(), e);
+            throw new UserClientException(String.format("Failed to fetch user info by userId: %s, status: %s",
+                    userId, e.getStatusCode()), e);
         }
     }
 

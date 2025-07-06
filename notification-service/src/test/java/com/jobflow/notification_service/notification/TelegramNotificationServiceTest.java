@@ -21,6 +21,9 @@ class TelegramNotificationServiceTest {
     private UserClient userClient;
 
     @Mock
+    private NotificationHistoryRepository notificationHistoryRepository;
+
+    @Mock
     private TelegramService telegramService;
 
     @InjectMocks
@@ -38,23 +41,26 @@ class TelegramNotificationServiceTest {
     }
 
     @Test
-    public void send_sendNotificationEvent() {
-        when(userClient.getUserInfo(notificationEvent.getUserId())).thenReturn(userInfo);
+    public void extractContact_extractTelegramChatId() {
+        Long chatId = telegramNotificationService.extractContact(userInfo);
 
-        telegramNotificationService.send(notificationEvent);
+        assertEquals(userInfo.getTelegramChatId(), chatId);
+    }
+
+    @Test
+    public void sendNotification_delegateToTelegramService() {
+        telegramNotificationService.sendNotification(userInfo.getTelegramChatId(), notificationEvent);
 
         verify(telegramService, times(1)).send(
-                userInfo.getTelegramChatId(), notificationEvent.getMessage()
+                userInfo.getTelegramChatId(),
+                notificationEvent.getMessage()
         );
     }
 
     @Test
-    public void send_withoutTelegramChatId_doesNotSendNotificationEvent() {
-        userInfo.setTelegramChatId(null);
-        when(userClient.getUserInfo(notificationEvent.getUserId())).thenReturn(userInfo);
+    public void getNotificationType_returnTelegram() {
+        NotificationType notificationType = telegramNotificationService.getNotificationType();
 
-        telegramNotificationService.send(notificationEvent);
-
-        verify(telegramService, never()).send(anyLong(), anyString());
+        assertEquals(NotificationType.TELEGRAM, notificationType);
     }
 }

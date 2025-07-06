@@ -54,7 +54,6 @@ public class OpenIdController {
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class))),
 
-
                     @ApiResponse(responseCode = "400", description = "Validation error, unsupported provider or invalid state/ID token",
                             content = @Content(mediaType = "application/json", schema =
                             @Schema(implementation = ResponseError.class)))

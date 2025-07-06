@@ -1,7 +1,7 @@
 package com.jobflow.notification_service.rabbitMQ;
 
+import com.jobflow.notification_service.notification.AbstractNotificationService;
 import com.jobflow.notification_service.notification.NotificationEvent;
-import com.jobflow.notification_service.notification.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -14,7 +14,7 @@ public class RabbitEmailConsumer extends RabbitNotificationConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(RabbitEmailConsumer.class);
 
     public RabbitEmailConsumer(
-            @Qualifier("emailNotificationService") NotificationService notificationService
+            @Qualifier("emailNotificationService") AbstractNotificationService<?> notificationService
     ) {
         super(notificationService);
     }
