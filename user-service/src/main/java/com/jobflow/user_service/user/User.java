@@ -50,6 +50,9 @@ public class User implements UserDetails {
     @Column(name = "auth_provider_id", length = 255)
     private String authProviderId;
 
+    @Column(name = "telegram_chat_id", unique = true)
+    private Long telegramChatId;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role.name()));

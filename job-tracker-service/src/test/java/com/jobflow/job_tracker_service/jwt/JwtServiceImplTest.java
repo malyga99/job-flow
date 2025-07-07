@@ -27,7 +27,7 @@ class JwtServiceImplTest {
     public void setup() {
         jwtService = new JwtServiceImpl(
                 SECRET_KEY
-        );;
+        );
     }
 
     @Test

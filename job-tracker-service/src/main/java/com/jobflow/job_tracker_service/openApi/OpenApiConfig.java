@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 @OpenAPIDefinition(
         servers = @Server(
-                url = "http://localhost:8080"
+                url = "http://localhost:8081"
         ),
         info = @Info(
                 title = "Job Tracker service",

@@ -1,0 +1,22 @@
+networks:
+  job-flow-network:
+    external: true
+
+services:
+  jobflow-notification-service:
+    build:
+      context: .
+    container_name: jobflow-notification-service
+    env_file:
+      - .env
+    networks:
+      - job-flow-network
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always

@@ -4,13 +4,11 @@ import com.jobflow.user_service.auth.AuthenticationRequest;
 import com.jobflow.user_service.auth.LogoutRequest;
 import com.jobflow.user_service.auth.RefreshTokenRequest;
 import com.jobflow.user_service.openId.OpenIdUserInfo;
-import com.jobflow.user_service.user.AuthProvider;
+import com.jobflow.user_service.user.*;
 import com.jobflow.user_service.openId.OpenIdRequest;
 import com.jobflow.user_service.register.ConfirmCodeRequest;
 import com.jobflow.user_service.register.RegisterRequest;
 import com.jobflow.user_service.register.ResendCodeRequest;
-import com.jobflow.user_service.user.Role;
-import com.jobflow.user_service.user.User;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.LinkedMultiValueMap;
@@ -62,6 +60,10 @@ public final class TestUtil {
         return createRequest(request, null);
     }
 
+    public static <T> HttpEntity<T> createRequest(HttpHeaders headers) {
+        return createRequest(null, headers);
+    }
+
     public static AuthenticationRequest createAuthRequest() {
         return new AuthenticationRequest(LOGIN, PASSWORD);
     }
@@ -108,6 +110,21 @@ public final class TestUtil {
                 .password(PASSWORD)
                 .role(Role.ROLE_USER)
                 .authProvider(AuthProvider.LOCAL)
+                .telegramChatId(1L)
+                .build();
+    }
+
+    public static UserInfoDto createUserInfo() {
+        return UserInfoDto.builder()
+                .email(LOGIN)
+                .telegramChatId(1L)
+                .build();
+    }
+
+    public static TelegramChatLinkRequest createLinkRequest() {
+        return TelegramChatLinkRequest.builder()
+                .userId(Long.valueOf(USER_ID))
+                .chatId(1L)
                 .build();
     }
 }

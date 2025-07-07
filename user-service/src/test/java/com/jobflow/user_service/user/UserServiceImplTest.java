@@ -1,6 +1,8 @@
 package com.jobflow.user_service.user;
 
 import com.jobflow.user_service.TestUtil;
+import com.jobflow.user_service.exception.InvalidApiKeyException;
+import com.jobflow.user_service.exception.UserNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +13,8 @@ import org.springframework.security.authentication.AuthenticationCredentialsNotF
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -24,16 +28,23 @@ class UserServiceImplTest {
     @Mock
     private Authentication authentication;
 
-    @InjectMocks
+    @Mock
+    private UserRepository userRepository;
+
     private UserServiceImpl userService;
 
     private User user;
+
+    private TelegramChatLinkRequest linkRequest;
 
     @BeforeEach
     public void setup() {
         SecurityContextHolder.setContext(securityContext);
 
+        userService = new UserServiceImpl(userRepository, "test-key");
         user = TestUtil.createUser();
+
+        linkRequest = TestUtil.createLinkRequest();
     }
 
     @Test
@@ -68,6 +79,71 @@ class UserServiceImplTest {
         assertEquals("Current user is not authenticated", authenticationException.getMessage());
 
         verify(authentication, times(1)).isAuthenticated();
+    }
+
+    @Test
+    public void getUserInfo_returnUserInfo() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UserInfoDto result = userService.getUserInfo(1L, "test-key");
+
+        assertNotNull(result);
+        assertEquals(user.getLogin(), result.getEmail());
+        assertEquals(user.getTelegramChatId(), result.getTelegramChatId());
+    }
+
+    @Test
+    public void getUserInfo_invalidApiKey_throwExc() {
+        var exc = assertThrows(InvalidApiKeyException.class, () -> userService.getUserInfo(1L, "invalid-key"));
+
+        assertEquals("Api key: invalid-key invalid", exc.getMessage());
+    }
+
+    @Test
+    public void getUserInfo_userNotFound_throwExc() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        var exc = assertThrows(UserNotFoundException.class, () -> userService.getUserInfo(1L, "test-key"));
+
+        assertEquals("User with id: 1 not found", exc.getMessage());
+    }
+
+    @Test
+    public void linkTelegram_linkTelegramSuccessfully() {
+        user.setTelegramChatId(null);
+        when(userRepository.findById(linkRequest.getUserId())).thenReturn(Optional.of(user));
+
+        userService.linkTelegram(linkRequest, "test-key");
+
+        assertEquals(linkRequest.getChatId(), user.getTelegramChatId());
+        verify(userRepository, times(1)).save(user);
+    }
+
+    @Test
+    public void linkTelegram_alreadyLinked_doesNotLink() {
+        user.setTelegramChatId(999L);
+        when(userRepository.findById(linkRequest.getUserId())).thenReturn(Optional.of(user));
+
+        userService.linkTelegram(linkRequest, "test-key");
+
+        assertEquals(999L, user.getTelegramChatId());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    public void linkTelegram_invalidApiKey_throwExc() {
+        var exc = assertThrows(InvalidApiKeyException.class, () -> userService.linkTelegram(linkRequest, "invalid-key"));
+
+        assertEquals("Api key: invalid-key invalid", exc.getMessage());
+    }
+
+    @Test
+    public void linkTelegram_userNotFound_throwExc() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        var exc = assertThrows(UserNotFoundException.class, () -> userService.linkTelegram(linkRequest, "test-key"));
+
+        assertEquals("User with id: 1 not found", exc.getMessage());
     }
 
 }
