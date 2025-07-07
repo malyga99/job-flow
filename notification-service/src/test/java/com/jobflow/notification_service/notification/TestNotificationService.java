@@ -1,5 +1,6 @@
 package com.jobflow.notification_service.notification;
 
+import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
 

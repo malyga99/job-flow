@@ -2,6 +2,7 @@ package com.jobflow.notification_service.notification;
 
 import com.jobflow.notification_service.TestUtil;
 import com.jobflow.notification_service.email.EmailService;
+import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
 import org.junit.jupiter.api.BeforeEach;

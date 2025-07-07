@@ -1,5 +1,6 @@
-package com.jobflow.notification_service.notification;
+package com.jobflow.notification_service.notification.history;
 
+import com.jobflow.notification_service.notification.NotificationType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
