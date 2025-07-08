@@ -14,6 +14,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * A utility class for use in unit/integration tests
@@ -79,7 +80,6 @@ public final class TestUtil {
 
     public static NotificationHistory createNotificationHistory() {
         return NotificationHistory.builder()
-                .id(1L)
                 .userId(1L)
                 .notificationType(NotificationType.EMAIL)
                 .subject("test-subject")
@@ -92,5 +92,9 @@ public final class TestUtil {
 
     public static void clearDb(JpaRepository<?, ?> repository) {
         repository.deleteAll();
+}
+
+    public static <T,ID> void saveDataInDb(JpaRepository<T, ID> repository, List<T> entities) {
+        repository.saveAll(entities);
     }
 }

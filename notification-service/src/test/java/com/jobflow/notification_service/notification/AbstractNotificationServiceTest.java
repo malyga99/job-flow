@@ -4,6 +4,7 @@ import com.jobflow.notification_service.TestUtil;
 import com.jobflow.notification_service.exception.UserClientException;
 import com.jobflow.notification_service.notification.history.NotificationHistory;
 import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
+import com.jobflow.notification_service.notification.history.NotificationHistoryService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +23,7 @@ class AbstractNotificationServiceTest {
     private UserClient userClient;
 
     @Mock
-    private NotificationHistoryRepository notificationHistoryRepository;
+    private NotificationHistoryService notificationHistoryService;
 
     @InjectMocks
     private TestNotificationService testNotificationService;
@@ -45,14 +46,12 @@ class AbstractNotificationServiceTest {
 
         testNotificationService.send(notificationEvent);
 
-        verify(notificationHistoryRepository, times(1)).save(NotificationHistory.builder()
-                        .userId(notificationEvent.getUserId())
-                        .notificationType(testNotificationService.getNotificationType())
-                        .subject(notificationEvent.getSubject())
-                        .message(notificationEvent.getMessage())
-                        .success(true)
-                        .failureReason(null)
-                .build());
+        verify(notificationHistoryService, times(1)).save(
+                notificationEvent,
+                testNotificationService.getNotificationType(),
+                true,
+                null
+        );
     }
 
     @Test
@@ -63,14 +62,12 @@ class AbstractNotificationServiceTest {
 
         testNotificationService.send(notificationEvent);
 
-        verify(notificationHistoryRepository, times(1)).save(NotificationHistory.builder()
-                .userId(notificationEvent.getUserId())
-                .notificationType(testNotificationService.getNotificationType())
-                .subject(notificationEvent.getSubject())
-                .message(notificationEvent.getMessage())
-                .success(false)
-                .failureReason("Contact data not found")
-                .build());
+        verify(notificationHistoryService, times(1)).save(
+                notificationEvent,
+                testNotificationService.getNotificationType(),
+                false,
+                "Contact data not found"
+        );
     }
 
     @Test
@@ -81,13 +78,11 @@ class AbstractNotificationServiceTest {
 
         testNotificationService.send(notificationEvent);
 
-        verify(notificationHistoryRepository, times(1)).save(NotificationHistory.builder()
-                .userId(notificationEvent.getUserId())
-                .notificationType(testNotificationService.getNotificationType())
-                .subject(notificationEvent.getSubject())
-                .message(notificationEvent.getMessage())
-                .success(false)
-                .failureReason(userClientException.getMessage())
-                .build());
+        verify(notificationHistoryService, times(1)).save(
+                notificationEvent,
+                testNotificationService.getNotificationType(),
+                false,
+                userClientException.getMessage()
+        );
     }
 }

@@ -2,6 +2,7 @@ package com.jobflow.notification_service.notification;
 
 import com.jobflow.notification_service.email.EmailService;
 import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
+import com.jobflow.notification_service.notification.history.NotificationHistoryService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
 import org.springframework.stereotype.Service;
@@ -13,9 +14,9 @@ public class EmailNotificationService extends AbstractNotificationService<String
 
     public EmailNotificationService(
             UserClient userClient,
-            NotificationHistoryRepository notificationHistoryRepository,
+            NotificationHistoryService notificationHistoryService,
             EmailService emailService) {
-        super(userClient, notificationHistoryRepository);
+        super(userClient, notificationHistoryService);
         this.emailService = emailService;
     }
 

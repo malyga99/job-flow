@@ -1,5 +1,7 @@
 package com.jobflow.notification_service.notification.history;
 
+import com.jobflow.notification_service.notification.NotificationEvent;
+import com.jobflow.notification_service.notification.NotificationType;
 import com.jobflow.notification_service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -29,5 +31,17 @@ public class NotificationHistoryServiceImpl implements NotificationHistoryServic
         LOGGER.debug("Fetched: {} notifications of the current user with id: {}",
                 notifications.getContent().size(), currentUserId);
         return notifications.map(notificationHistoryMapper::toDto);
+    }
+
+    @Override
+    public void save(NotificationEvent notificationEvent, NotificationType notificationType, boolean success, String failureReason) {
+        notificationHistoryRepository.save(NotificationHistory.builder()
+                .userId(notificationEvent.getUserId())
+                .notificationType(notificationType)
+                .subject(notificationEvent.getSubject())
+                .message(notificationEvent.getMessage())
+                .success(success)
+                .failureReason(failureReason)
+                .build());
     }
 }

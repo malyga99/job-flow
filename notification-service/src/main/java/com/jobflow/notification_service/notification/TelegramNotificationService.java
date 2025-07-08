@@ -1,6 +1,7 @@
 package com.jobflow.notification_service.notification;
 
 import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
+import com.jobflow.notification_service.notification.history.NotificationHistoryService;
 import com.jobflow.notification_service.telegram.TelegramService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
@@ -16,9 +17,9 @@ public class TelegramNotificationService extends AbstractNotificationService<Lon
 
     public TelegramNotificationService(
             UserClient userClient,
-            NotificationHistoryRepository notificationHistoryRepository,
+            NotificationHistoryService notificationHistoryService,
             TelegramService telegramService) {
-        super(userClient, notificationHistoryRepository);
+        super(userClient, notificationHistoryService);
         this.telegramService = telegramService;
     }
 

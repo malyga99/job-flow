@@ -50,7 +50,11 @@ class NotificationHistoryControllerTest {
         firstHistoryDto = TestUtil.createNotificationHistoryDto();
         secondHistoryDto = TestUtil.createNotificationHistoryDto();
 
-        mockPage = new PageImpl<>(List.of(firstHistoryDto, secondHistoryDto), PageRequest.of(0, 10, Sort.by(Direction.DESC, "createdAt")), 2);
+        mockPage = new PageImpl<>(
+                List.of(firstHistoryDto, secondHistoryDto),
+                PageRequest.of(0, 10, Sort.by(Direction.DESC, "createdAt")),
+                2
+        );
     }
 
     @Test

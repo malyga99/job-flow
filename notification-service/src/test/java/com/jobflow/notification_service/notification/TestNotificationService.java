@@ -1,13 +1,16 @@
 package com.jobflow.notification_service.notification;
 
-import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
+import com.jobflow.notification_service.notification.history.NotificationHistoryService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
 
 public class TestNotificationService extends AbstractNotificationService<String> {
 
-    public TestNotificationService(UserClient userClient, NotificationHistoryRepository notificationHistoryRepository) {
-        super(userClient, notificationHistoryRepository);
+    public TestNotificationService(
+            UserClient userClient,
+            NotificationHistoryService notificationHistoryService
+    ) {
+        super(userClient, notificationHistoryService);
     }
 
     @Override
