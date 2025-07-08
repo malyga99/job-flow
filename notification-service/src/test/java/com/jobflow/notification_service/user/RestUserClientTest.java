@@ -70,7 +70,8 @@ class RestUserClientTest {
 
     @Test
     public void getUserInfo_ifFailedToFetch_throwExc() {
-        var httpStatusCodeException = new HttpStatusCodeException(HttpStatus.UNAUTHORIZED){};
+        var httpStatusCodeException = new HttpStatusCodeException(HttpStatus.UNAUTHORIZED) {
+        };
 
         when(restTemplate.exchange(
                 eq("http://localhost:8080/api/v1/users/info?userId=1"),
@@ -80,8 +81,10 @@ class RestUserClientTest {
         )).thenThrow(httpStatusCodeException);
 
         var userClientException = assertThrows(UserClientException.class, () -> restUserClient.getUserInfo(1L));
-        assertEquals("Failed to fetch user info, status: " + httpStatusCodeException.getStatusCode(),
-                userClientException.getMessage());
+        assertEquals(
+                String.format("Failed to fetch user info by userId: %s, status: %s", 1L, httpStatusCodeException.getStatusCode()),
+                userClientException.getMessage()
+        );
     }
 
     @Test
@@ -110,7 +113,8 @@ class RestUserClientTest {
 
     @Test
     public void linkChatId_ifFailedToLink_throwExc() {
-        var httpStatusCodeException = new HttpStatusCodeException(HttpStatus.UNAUTHORIZED){};
+        var httpStatusCodeException = new HttpStatusCodeException(HttpStatus.UNAUTHORIZED) {
+        };
 
         when(restTemplate.exchange(
                 eq("http://localhost:8080/api/v1/users/telegram"),

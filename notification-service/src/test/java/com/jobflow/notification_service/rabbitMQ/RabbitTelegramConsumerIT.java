@@ -2,7 +2,11 @@ package com.jobflow.notification_service.rabbitMQ;
 
 import com.jobflow.notification_service.BaseIT;
 import com.jobflow.notification_service.TestUtil;
+import com.jobflow.notification_service.exception.UserClientException;
 import com.jobflow.notification_service.notification.NotificationEvent;
+import com.jobflow.notification_service.notification.NotificationType;
+import com.jobflow.notification_service.notification.history.NotificationHistory;
+import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
 import com.jobflow.notification_service.telegram.TelegramProperties;
 import com.jobflow.notification_service.user.UserInfo;
 import com.jobflow.notification_service.user.UserServiceProperties;
@@ -40,6 +44,9 @@ public class RabbitTelegramConsumerIT extends BaseIT {
     @Autowired
     private AmqpTemplate amqpTemplate;
 
+    @Autowired
+    private NotificationHistoryRepository historyRepository;
+
     @MockitoBean
     private RestTemplate restTemplate;
 
@@ -49,27 +56,19 @@ public class RabbitTelegramConsumerIT extends BaseIT {
 
     @BeforeEach
     public void setup() {
+        TestUtil.clearDb(historyRepository);
+
         notificationEvent = TestUtil.createNotificationEvent();
+
         userInfo = TestUtil.createUserInfo();
     }
 
     @Test
-    public void consume_consumeNotificationEventCorrectlyAndSendToTelegramSuccessfully() {
+    public void consume_consumeNotificationEventAndSendToTelegramSuccessfully() {
         ArgumentCaptor<HttpEntity<Map<String, String>>> captor = ArgumentCaptor.forClass(HttpEntity.class);
-        ResponseEntity<UserInfo> responseUserService = new ResponseEntity<>(userInfo, HttpStatus.OK);
-        when(restTemplate.exchange(
-                eq(String.format("http://%s:%s/api/v1/users/info?userId=%s",
-                        userServiceProperties.getHost(), userServiceProperties.getPort(), notificationEvent.getUserId())),
-                eq(HttpMethod.GET),
-                any(HttpEntity.class),
-                eq(UserInfo.class)
-        )).thenReturn(responseUserService);
 
-        amqpTemplate.convertAndSend(
-                rabbitProperties.getExchangeName(),
-                rabbitProperties.getTelegramQueueRoutingKey(),
-                notificationEvent
-        );
+        mockFetchingUserInfo();
+        sendMessageInQueue();
 
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
                 verify(restTemplate, times(1)).exchange(
@@ -84,5 +83,92 @@ public class RabbitTelegramConsumerIT extends BaseIT {
         assertNotNull(body);
         assertEquals(String.valueOf(userInfo.getTelegramChatId()), body.get("chat_id"));
         assertEquals(notificationEvent.getMessage(), body.get("text"));
+    }
+
+    @Test
+    public void consume_ifSuccess_saveInDbHistory() {
+        consume_consumeNotificationEventAndSendToTelegramSuccessfully();
+
+        NotificationHistory savedNotification = historyRepository.findAll().get(0);
+        assertNotNull(savedNotification);
+        assertNotNull(savedNotification.getId());
+        assertEquals(notificationEvent.getUserId(), savedNotification.getUserId());
+        assertEquals(NotificationType.TELEGRAM, savedNotification.getNotificationType());
+        assertEquals(notificationEvent.getSubject(), savedNotification.getSubject());
+        assertEquals(notificationEvent.getMessage(), savedNotification.getMessage());
+        assertTrue(savedNotification.getSuccess());
+        assertNull(savedNotification.getFailureReason());
+        assertNotNull(savedNotification.getCreatedAt());
+    }
+
+    @Test
+    public void consume_ifContactDataNotFound_saveInDbHistory() {
+        userInfo.setTelegramChatId(null);
+
+        mockFetchingUserInfo();
+        sendMessageInQueue();
+
+        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                historyRepository.findAll().size() == 1);
+
+        NotificationHistory savedNotification = historyRepository.findAll().get(0);
+        assertNotNull(savedNotification);
+        assertNotNull(savedNotification.getId());
+        assertEquals(notificationEvent.getUserId(), savedNotification.getUserId());
+        assertEquals(NotificationType.TELEGRAM, savedNotification.getNotificationType());
+        assertEquals(notificationEvent.getSubject(), savedNotification.getSubject());
+        assertEquals(notificationEvent.getMessage(), savedNotification.getMessage());
+        assertFalse(savedNotification.getSuccess());
+        assertEquals("Contact data not found", savedNotification.getFailureReason());
+        assertNotNull(savedNotification.getCreatedAt());
+    }
+
+    @Test
+    public void consume_ifSomeExc_saveInDbHistory() {
+        var userClientException = new UserClientException("User client exception");
+
+        when(restTemplate.exchange(
+                eq(String.format("http://%s:%s/api/v1/users/info?userId=%s",
+                        userServiceProperties.getHost(), userServiceProperties.getPort(), notificationEvent.getUserId())),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(UserInfo.class)
+        )).thenThrow(userClientException);
+        sendMessageInQueue();
+
+
+        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                historyRepository.findAll().size() == 1);
+
+        NotificationHistory savedNotification = historyRepository.findAll().get(0);
+        assertNotNull(savedNotification);
+        assertNotNull(savedNotification.getId());
+        assertEquals(notificationEvent.getUserId(), savedNotification.getUserId());
+        assertEquals(NotificationType.TELEGRAM, savedNotification.getNotificationType());
+        assertEquals(notificationEvent.getSubject(), savedNotification.getSubject());
+        assertEquals(notificationEvent.getMessage(), savedNotification.getMessage());
+        assertFalse(savedNotification.getSuccess());
+        assertEquals(userClientException.getMessage(), savedNotification.getFailureReason());
+        assertNotNull(savedNotification.getCreatedAt());
+    }
+
+    private void sendMessageInQueue() {
+        amqpTemplate.convertAndSend(
+                rabbitProperties.getExchangeName(),
+                rabbitProperties.getTelegramQueueRoutingKey(),
+                notificationEvent
+        );
+    }
+
+    private void mockFetchingUserInfo() {
+        ResponseEntity<UserInfo> responseUserService = new ResponseEntity<>(userInfo, HttpStatus.OK);
+
+        when(restTemplate.exchange(
+                eq(String.format("http://%s:%s/api/v1/users/info?userId=%s",
+                        userServiceProperties.getHost(), userServiceProperties.getPort(), notificationEvent.getUserId())),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(UserInfo.class)
+        )).thenReturn(responseUserService);
     }
 }

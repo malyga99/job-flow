@@ -1,23 +1,16 @@
 package com.jobflow.notification_service.notification;
 
-import com.jobflow.notification_service.email.EmailService;
-import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
 import com.jobflow.notification_service.notification.history.NotificationHistoryService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
-import org.springframework.stereotype.Service;
 
-@Service
-public class EmailNotificationService extends AbstractNotificationService<String> {
+public class TestNotificationService extends AbstractNotificationService<String> {
 
-    private final EmailService emailService;
-
-    public EmailNotificationService(
+    public TestNotificationService(
             UserClient userClient,
-            NotificationHistoryService notificationHistoryService,
-            EmailService emailService) {
+            NotificationHistoryService notificationHistoryService
+    ) {
         super(userClient, notificationHistoryService);
-        this.emailService = emailService;
     }
 
     @Override
@@ -27,11 +20,7 @@ public class EmailNotificationService extends AbstractNotificationService<String
 
     @Override
     protected void sendNotification(String contact, NotificationEvent notificationEvent) {
-        emailService.send(
-                contact,
-                notificationEvent.getSubject(),
-                notificationEvent.getMessage()
-        );
+
     }
 
     @Override
