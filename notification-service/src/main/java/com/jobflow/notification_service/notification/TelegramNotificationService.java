@@ -1,5 +1,7 @@
 package com.jobflow.notification_service.notification;
 
+import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
+import com.jobflow.notification_service.notification.history.NotificationHistoryService;
 import com.jobflow.notification_service.telegram.TelegramService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
@@ -9,29 +11,30 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
-public class TelegramNotificationService implements NotificationService {
+public class TelegramNotificationService extends AbstractNotificationService<Long> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TelegramNotificationService.class);
-
-    private final UserClient userClient;
     private final TelegramService telegramService;
 
+    public TelegramNotificationService(
+            UserClient userClient,
+            NotificationHistoryService notificationHistoryService,
+            TelegramService telegramService) {
+        super(userClient, notificationHistoryService);
+        this.telegramService = telegramService;
+    }
+
     @Override
-    public void send(NotificationEvent notificationEvent) {
-        Long userId = notificationEvent.getUserId();
-        LOGGER.debug("Sending notification event to user with id: {}", userId);
+    protected Long extractContact(UserInfo userInfo) {
+        return userInfo.getTelegramChatId();
+    }
 
-        UserInfo userInfo = userClient.getUserInfo(userId);
-        Long telegramChatId = userInfo.getTelegramChatId();
+    @Override
+    protected void sendNotification(Long contact, NotificationEvent notificationEvent) {
+        telegramService.send(contact, notificationEvent.getMessage());
+    }
 
-        if (telegramChatId != null) {
-            telegramService.send(telegramChatId, notificationEvent.getMessage());
-
-            LOGGER.debug("Successfully sent notification event to user with id: {}, telegramChatId: {}",
-                    userId, telegramChatId);
-        } else {
-            LOGGER.debug("Telegram chat ID was not found. Notification event not sent to user with id: {}", userId);
-        }
+    @Override
+    protected NotificationType getNotificationType() {
+        return NotificationType.TELEGRAM;
     }
 }

@@ -12,20 +12,20 @@ import org.springframework.stereotype.Component;
 public class RabbitProperties {
 
     private String host;
-
     private String port;
-
     private String username;
-
     private String password;
 
     private String exchangeName;
+    private String dleName;
 
     private String emailQueueName;
-
     private String telegramQueueName;
+    private String emailDlqName;
+    private String telegramDlqName;
 
     private String emailQueueRoutingKey;
-
     private String telegramQueueRoutingKey;
+    private String emailDlqRoutingKey;
+    private String telegramDlqRoutingKey;
 }

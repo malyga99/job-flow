@@ -92,6 +92,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (ttl > 0) {
             String key = String.format(BLACKLIST_KEY, tokenId);
             redisTemplate.opsForValue().set(key, "true", ttl, TimeUnit.SECONDS);
+
             LOGGER.debug("Successfully revoked refresh token with jti: {} (TTL: {} seconds) for user: {}", tokenId, ttl, currentUser.displayInfo());
         } else {
             LOGGER.debug("Refresh token with jti: {} for user: {} already expired", tokenId, currentUser.displayInfo());

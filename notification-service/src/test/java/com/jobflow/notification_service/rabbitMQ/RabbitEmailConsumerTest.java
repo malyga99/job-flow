@@ -1,8 +1,9 @@
 package com.jobflow.notification_service.rabbitMQ;
 
 import com.jobflow.notification_service.TestUtil;
+import com.jobflow.notification_service.exception.NotificationException;
+import com.jobflow.notification_service.notification.AbstractNotificationService;
 import com.jobflow.notification_service.notification.NotificationEvent;
-import com.jobflow.notification_service.notification.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,14 +11,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class RabbitEmailConsumerTest {
 
     @Mock
-    private NotificationService notificationService;
+    private AbstractNotificationService<?> notificationService;
 
     @InjectMocks
     private RabbitEmailConsumer emailConsumer;
@@ -34,5 +35,15 @@ class RabbitEmailConsumerTest {
         emailConsumer.consume(notificationEvent);
 
         verify(notificationService, times(1)).send(notificationEvent);
+    }
+
+    @Test
+    public void recover_throwExc() {
+        var notificationException = new NotificationException("Notification exception");
+
+        var result = assertThrows(
+                NotificationException.class, () -> emailConsumer.recover(notificationException, notificationEvent)
+        );
+        assertEquals(notificationException.getMessage(), result.getMessage());
     }
 }
