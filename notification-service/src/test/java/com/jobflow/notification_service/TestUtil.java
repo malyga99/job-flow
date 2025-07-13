@@ -9,6 +9,7 @@ import com.jobflow.notification_service.telegram.TelegramMessage;
 import com.jobflow.notification_service.telegram.TelegramUpdate;
 import com.jobflow.notification_service.telegram.TelegramUser;
 import com.jobflow.notification_service.user.UserInfo;
+import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -88,6 +89,10 @@ public final class TestUtil {
                 .failureReason(null)
                 .createdAt(LocalDateTime.now())
                 .build();
+    }
+
+    public static void clearRabbit(AmqpAdmin amqpAdmin, String queueName) {
+        amqpAdmin.purgeQueue(queueName);
     }
 
     public static void clearDb(JpaRepository<?, ?> repository) {

@@ -1,5 +1,6 @@
 package com.jobflow.notification_service.notification;
 
+import com.jobflow.notification_service.exception.NotificationException;
 import com.jobflow.notification_service.notification.history.NotificationHistoryService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
@@ -40,6 +41,8 @@ public abstract class AbstractNotificationService<C> {
                     userId, e.getMessage());
 
             historyService.save(notificationEvent, notificationType, false, e.getMessage());
+
+            throw new NotificationException("Failed to sending notification event: " + e.getMessage(), e);
         }
     }
 

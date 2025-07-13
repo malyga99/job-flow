@@ -27,7 +27,7 @@ services:
       start_period: 10s
     restart: always
 
-  jobflow-notificat ion-db:
+  jobflow-notification-db:
     image: postgres:latest
     container_name: jobflow-notification-db
     networks:

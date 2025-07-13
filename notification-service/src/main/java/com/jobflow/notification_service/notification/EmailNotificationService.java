@@ -5,6 +5,7 @@ import com.jobflow.notification_service.notification.history.NotificationHistory
 import com.jobflow.notification_service.notification.history.NotificationHistoryService;
 import com.jobflow.notification_service.user.UserClient;
 import com.jobflow.notification_service.user.UserInfo;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
 @Service

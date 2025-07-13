@@ -1,6 +1,7 @@
 package com.jobflow.notification_service.notification;
 
 import com.jobflow.notification_service.TestUtil;
+import com.jobflow.notification_service.exception.NotificationException;
 import com.jobflow.notification_service.exception.UserClientException;
 import com.jobflow.notification_service.notification.history.NotificationHistory;
 import com.jobflow.notification_service.notification.history.NotificationHistoryRepository;
@@ -14,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -71,12 +73,14 @@ class AbstractNotificationServiceTest {
     }
 
     @Test
-    public void send_ifSomeExc_saveInDbCorrectlyInfo() {
+    public void send_ifSomeExc_throwExcAndSaveInDbCorrectlyInfo() {
         var userClientException = new UserClientException("User client exception");
         Long userId = notificationEvent.getUserId();
         when(userClient.getUserInfo(userId)).thenThrow(userClientException);
 
-        testNotificationService.send(notificationEvent);
+        var notificationException = assertThrows(NotificationException.class, () -> testNotificationService.send(notificationEvent));
+        assertEquals("Failed to sending notification event: " + userClientException.getMessage(),
+                notificationException.getMessage());
 
         verify(notificationHistoryService, times(1)).save(
                 notificationEvent,
