@@ -8,4 +8,5 @@ import lombok.RequiredArgsConstructor;
 public abstract class RabbitNotificationConsumer extends RabbitAbstractConsumer<NotificationEvent> {
 
     protected final AbstractNotificationService<?> notificationService;
+
 }
