@@ -31,7 +31,7 @@ for user identity.
 - **ID‑token validation** — Google JWK Set cached in Redis
 - **First‑login auto‑provisioning** — creates user from provider claims
 
-### Security & Hardening
+### Security & Rate Limiting
 
 - **Redis Rate Limiter (Fixed Window)** — per‑endpoint rules (IP + login + userId)
 - **Custom exception handler** — all business and validation errors return unified JSON responses
@@ -88,11 +88,11 @@ docker-compose up --build
 
 Access the Services:
 
-| Service        | Port(s) | URL                                                                                        |
-|----------------|---------|--------------------------------------------------------------------------------------------|
-| **API Docs**   | `8080`  | [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) |
-| **PostgreSQL** | `5432`  | –                                                                                          |
-| **Redis**      | `6379`  | –                                                                                          |
+| Service        | Port(s)        | UI                                                                                         |
+|----------------|----------------|--------------------------------------------------------------------------------------------|
+| **API Docs**   | `8080`         | [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) |
+| **PostgreSQL** | `5432`         | –                                                                                          |
+| **Redis**      | `6379`, `8001` | [http://localhost:8001](http://localhost:8001)                                             |
 
 ### Notes:
 
@@ -101,6 +101,7 @@ Access the Services:
    correctly, as Spring Boot waits for them to be ready before starting. You can check the status with the command:
    `docker ps`
 - **Stop and remove containers**: To stop and remove containers and volumes, use: `docker-compose down -v`
+- **Ports**. The ports in table depend on what you specified in `docker-compose.yml`
 
 ## Testing & Coverage
 
