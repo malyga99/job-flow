@@ -71,7 +71,7 @@ This platform is designed for:
 
 - **Swagger / OpenAPI** — API documentation
 - **Logback** — structured logging
-- **ELK Stack (Elasticsearch + Logstash + Kibana)** — centralized log aggregation
+- **ELK Stack (Elasticsearch + Logstash + Kibana + Filebeat)** — centralized log aggregation
 
 ---
 
